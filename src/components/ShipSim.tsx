@@ -304,22 +304,22 @@ export default function ShipSim() {
       // Class physics modifiers
       let inertia = 1; // 1 = small, <1 = larger (slower response)
       let turnInertia = 1;
-      let visualScale = 1.25; // 1.25 (scaled up 25%)
+      let visualScale = 1.5625; // (scaled up another 25%)
       let maxSpeedMultiplier = 1;
       
       if (shipClass === 'zodiac') {
         inertia = 1.8; // Very fast acceleration
         turnInertia = 2.0; // Very fast turning
-        visualScale = 0.625; // Small size (scaled up 25%)
+        visualScale = 0.78125; // Small size (scaled up another 25%)
         maxSpeedMultiplier = 1.5; // High top speed
       } else if (shipClass === 'corvette') {
         inertia = 0.5;
         turnInertia = 0.6;
-        visualScale = 1.5; // (scaled up 25%)
+        visualScale = 1.875; // (scaled up another 25%)
       } else if (shipClass === 'frigate') {
         inertia = 0.25;
         turnInertia = 0.3;
-        visualScale = 2.25; // (scaled up 25%)
+        visualScale = 2.8125; // (scaled up another 25%)
       }
 
       // Acceleration based on throttle (-100 to 100)
