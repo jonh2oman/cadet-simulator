@@ -41,6 +41,8 @@ export default function ShipSim() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [isDocked, setIsDocked] = useState(true);
   const [canTieUp, setCanTieUp] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = useRef(false);
   const tieUpDataRef = useRef({ snapX: 460, snapY: 150, snapH: 0 });
   
   // Buoy controls
@@ -245,6 +247,12 @@ export default function ShipSim() {
     let lastTime = performance.now();
 
     const render = (time: number) => {
+      if (isPausedRef.current) {
+        lastTime = time;
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
+
       const dt = (time - lastTime) / 1000;
       lastTime = time;
 
@@ -370,7 +378,7 @@ export default function ShipSim() {
         const isTieUpAvailable = inZoneX && inZoneY && speedOk;
         
         if (isTieUpAvailable) {
-           tieUpDataRef.current = { snapX: dockWorldX + berthZone.snapX - 500 + 460, snapY: dockWorldY + berthZone.snapY - 50 + 150, snapH: berthZone.snapH };
+           tieUpDataRef.current = { snapX: berthZone.snapX, snapY: berthZone.snapY, snapH: berthZone.snapH };
         }
         
         // Pass to React State (limit frequency)
@@ -1252,6 +1260,23 @@ export default function ShipSim() {
           className="absolute z-10 bottom-12 left-1/2 -translate-x-1/2 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-full shadow-[0_0_30px_rgba(16,185,129,0.8)] border-4 border-emerald-400 tracking-widest text-lg transition-transform hover:scale-105 animate-bounce"
         >
           TIE UP SECURELY
+        </button>
+      )}
+
+      {/* Pause Button */}
+      {!showWelcome && (
+        <button 
+          onClick={() => {
+            setIsPaused(!isPaused);
+            isPausedRef.current = !isPaused;
+          }}
+          className={`absolute z-10 top-6 right-6 px-6 py-2 font-bold rounded-full shadow-lg border-2 tracking-widest text-sm transition-all ${
+            isPaused 
+              ? 'bg-red-600 hover:bg-red-500 text-white border-red-400 animate-pulse' 
+              : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-600'
+          }`}
+        >
+          {isPaused ? 'RESUME SIM' : 'PAUSE SIM'}
         </button>
       )}
 
