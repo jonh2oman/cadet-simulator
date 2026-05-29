@@ -263,7 +263,7 @@ export default function AlphabetGame() {
         {/* Flashcard Mode */}
         {mode === 'flashcard' && (
           <div className="max-w-md w-full flex flex-col items-center">
-            <div className={`w-64 h-64 rounded-3xl flex items-center justify-center text-9xl font-black mb-12 shadow-2xl transition-colors duration-300 ${
+            <div className={`w-64 h-64 rounded-3xl flex items-center justify-center text-[150px] font-black mb-12 shadow-2xl transition-colors duration-300 ${
               feedback === 'correct' ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-500/50 shadow-[0_0_50px_rgba(16,185,129,0.3)]' :
               feedback === 'incorrect' ? 'bg-red-900/40 text-red-400 border border-red-500/50 shadow-[0_0_50px_rgba(239,68,68,0.3)]' :
               'bg-slate-800 text-slate-200 border border-slate-700 shadow-slate-900/50'
