@@ -8,7 +8,7 @@ interface SignalFlagProps {
 
 export const SignalFlag = memo(({ char, size = 100, className = '' }: SignalFlagProps) => {
   const c = char.toUpperCase();
-  const isPennant = /[0-9]/.test(c);
+  const isPennant = /[0-9]/.test(c) || c === 'PREP' || c === '3SUB';
   
   // Base dimensions. Pennants are typically longer.
   const w = isPennant ? 120 : 100;
@@ -65,6 +65,10 @@ export const SignalFlag = memo(({ char, size = 100, className = '' }: SignalFlag
     case '8': content = <><polygon points="0,0 120,30 120,70 0,100" fill="#fff"/><polygon points="30,7.5 50,12.5 50,87.5 30,92.5" fill="#e3000f"/><polygon points="0,40 106.6,40 106.6,60 0,60" fill="#e3000f"/></>; break;
     case '9': content = <><polygon points="0,0 120,30 120,70 0,100" fill="#fff"/><polygon points="0,0 60,15 60,50 0,50" fill="#fff"/><polygon points="60,15 120,30 120,50 60,50" fill="#000"/><polygon points="0,50 60,50 60,85 0,100" fill="#e3000f"/><polygon points="60,50 120,50 120,70 60,85" fill="#ffcc00"/></>; break;
     case '0': content = <><polygon points="0,0 120,30 120,70 0,100" fill="#ffcc00"/><polygon points="40,10 80,20 80,80 40,90" fill="#e3000f"/></>; break;
+    
+    // Special Cadet Pennants
+    case 'PREP': content = <><polygon points="0,0 120,30 120,70 0,100" fill="#ffcc00"/><polygon points="0,33.3 120,43.3 120,56.6 0,66.6" fill="#009e60"/></>; break;
+    case '3SUB': content = <><polygon points="0,0 120,30 120,70 0,100" fill="#fff"/><polygon points="0,0 120,30 120,43.3 0,33.3" fill="#000"/><polygon points="0,66.6 120,56.6 120,70 0,100" fill="#000"/></>; break;
     
     default: content = <rect width="100" height="100" fill="#333"/>;
   }
