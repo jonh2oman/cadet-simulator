@@ -45,6 +45,12 @@ export default function ShipSim() {
   const isPausedRef = useRef(false);
   const tieUpDataRef = useRef({ snapX: 460, snapY: 150, snapH: 0 });
   
+  // Helicopter Sidequest States
+  const [simMode, setSimMode] = useState<'ship' | 'heli'>('ship');
+  const [heliCollective, setHeliCollective] = useState(0);
+  const [heliPedals, setHeliPedals] = useState(0);
+  const [missionAccomplished, setMissionAccomplished] = useState(false);
+
   // Buoy controls
   const [showPortBuoy, setShowPortBuoy] = useState(true);
   const [showStbdBuoy, setShowStbdBuoy] = useState(true);
@@ -53,17 +59,30 @@ export default function ShipSim() {
     throttle: 0, rudder: 0, navLightsOn: true, whiteLightsOn: true,
     windSpeed: 0, windDir: 0, currentSpeed: 0, currentDir: 0, jettyType: 'straight',
     showPortBuoy: true, showStbdBuoy: true, shipClass: 'patrol', damageEnabled: false, portMode: 'home',
-    isDocked: true
+    isDocked: true, simMode: 'ship'
   });
+  
+  // Heli Physics State
+  const heliState = useRef({
+    x: 0, y: 0, altitude: 0, heading: 0, speed: 0,
+    pitch: 0, roll: 0, yawRate: 0 
+  });
+
+  const heliControlsRef = useRef({
+    collective: 0, pedals: 0, cyclicX: 0, cyclicY: 0
+  });
+
   const particlesRef = useRef<{x: number, y: number, life: number}[]>([]);
 
   useEffect(() => {
     controlsRef.current = {
       throttle, rudder, navLightsOn, whiteLightsOn,
       windSpeed, windDir, currentSpeed, currentDir, jettyType,
-      showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked
+      showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode
     };
-  }, [throttle, rudder, navLightsOn, whiteLightsOn, windSpeed, windDir, currentSpeed, currentDir, jettyType, showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked]);
+    heliControlsRef.current.collective = heliCollective;
+    heliControlsRef.current.pedals = heliPedals;
+  }, [throttle, rudder, navLightsOn, whiteLightsOn, windSpeed, windDir, currentSpeed, currentDir, jettyType, showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode, heliCollective, heliPedals]);
 
   useEffect(() => {
     const generateIsland = (cx: number, cy: number, radius: number) => {
@@ -87,12 +106,8 @@ export default function ShipSim() {
     } else {
       const newIslands = [];
       for(let i=0; i<4; i++) {
-        // Keep them strictly to the left of the mainland (mainland starts at world x=750)
-        // Spawn them in the navigable water (world x from -600 to 400)
         let cx = (Math.random() * 1000) - 600; 
         let cy = (Math.random() - 0.5) * 1200;
-        
-        // Keep them away from the jetty area (around 500, 50)
         if (Math.abs(cx - 500) < 300 && Math.abs(cy - 50) < 300) {
           cx -= 400; 
         }
@@ -146,7 +161,6 @@ export default function ShipSim() {
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'BUTTON') return;
-    // Don't drag if we are turning the wheel or pushing the throttle
     if ((e.target as HTMLElement).closest('.steering-wheel-container') || (e.target as HTMLElement).closest('.lever-container')) return;
     setIsDragging(true);
     dragStart.current = { x: e.clientX, y: e.clientY, panelX: panelPos.x, panelY: panelPos.y };
@@ -165,17 +179,10 @@ export default function ShipSim() {
     const dx = clientX - centerX;
     const dy = clientY - centerY;
     
-    // atan2(dy, dx) gives angle from 3 o'clock. We want 12 o'clock to be 0.
     let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-    
-    // Normalize to -180 to 180
     if (angle > 180) angle -= 360;
-    
-    // Clamp to -45 to 45
     if (angle > 45) angle = 45;
     if (angle < -45) angle = -45;
-    
-    // Snap to 0
     if (Math.abs(angle) < 6) angle = 0;
     
     setRudder(Math.round(angle));
@@ -226,16 +233,35 @@ export default function ShipSim() {
     
     // Convert to world space
     const state = shipState.current;
+    
+    // Helipad interaction
+    if (controlsRef.current.simMode === 'ship' && shipClass === 'frigate') {
+        const dx = clientX - canvas.width / 2;
+        const dy = clientY - canvas.height / 2;
+        const cosH = Math.cos(-state.heading);
+        const sinH = Math.sin(-state.heading);
+        const shipLocalX = dx * cosH - dy * sinH;
+        const shipLocalY = dx * sinH + dy * cosH;
+        if (Math.abs(shipLocalX) < 15 && shipLocalY > 30 && shipLocalY < 60) {
+           heliState.current = {
+             x: state.x - Math.sin(state.heading) * 45,
+             y: state.y + Math.cos(state.heading) * 45,
+             heading: state.heading, altitude: 0, speed: 0, pitch: 0, roll: 0, yawRate: 0
+           };
+           setSimMode('heli');
+           return;
+        }
+    }
+
     const worldX = clientX + state.x - canvas.width / 2;
     const worldY = clientY + state.y - canvas.height / 2;
 
-    // Check collision with buoys
     for (const buoy of buoys.current) {
       if ((buoy.type === 'port' && !controlsRef.current.showPortBuoy) ||
           (buoy.type === 'starboard' && !controlsRef.current.showStbdBuoy)) continue;
           
       const dist = Math.hypot(buoy.x - worldX, buoy.y - worldY);
-      if (dist < 30) { // 30px hit radius
+      if (dist < 30) {
         draggingBuoyRef.current = buoy.id;
         return;
       }
@@ -453,6 +479,54 @@ export default function ShipSim() {
           y: sternY + (Math.random() - 0.5) * 8 * visualScale,
           life: 1.5
         });
+      }
+
+      // Helicopter Physics
+      if (controlsRef.current.simMode === 'heli') {
+         const hState = heliState.current;
+         const hc = heliControlsRef.current;
+         
+         // Collective -> Altitude & Lift
+         const liftForce = (hc.collective / 100) * 1.5;
+         const gravity = 0.8;
+         let verticalAccel = liftForce - gravity;
+         
+         // Ground effect
+         if (hState.altitude < 10 && verticalAccel < 0) {
+           verticalAccel += (10 - hState.altitude) * 0.05;
+         }
+         
+         hState.altitude += verticalAccel;
+         if (hState.altitude < 0) hState.altitude = 0; // Floor
+
+         // Cyclics -> Pitch/Roll -> Speed/Drift
+         hState.pitch += (hc.cyclicY / 100 * 0.5 - hState.pitch) * dt * 2;
+         hState.roll += (hc.cyclicX / 100 * 0.5 - hState.roll) * dt * 2;
+         
+         // Pedals -> Yaw Rate
+         hState.yawRate += (hc.pedals / 100 * 2.0 - hState.yawRate) * dt * 3;
+         hState.heading += hState.yawRate * dt;
+
+         // Forward/Side speed from pitch and roll
+         const forwardThrust = -hState.pitch * 30; // pitch down (negative) goes forward
+         const sideThrust = hState.roll * 30; // roll right (positive) goes right
+
+         // Air friction
+         hState.speed = hState.speed * 0.95 + forwardThrust * dt;
+         
+         // Move helicopter
+         hState.x += (Math.sin(hState.heading) * hState.speed + Math.cos(hState.heading) * sideThrust) * dt;
+         hState.y -= (Math.cos(hState.heading) * hState.speed - Math.sin(hState.heading) * sideThrust) * dt;
+
+         // Check Mission Accomplished (landed safely on Jetty LZ)
+         if (hState.altitude === 0 && hState.speed < 1 && Math.abs(hState.pitch) < 0.1 && Math.abs(hState.roll) < 0.1) {
+            // Is it on the LZ? LZ is at world coords dockWorldX + 130 to 170, dockWorldY + 80 to 120
+            const lzX = dockWorldX + 150;
+            const lzY = dockWorldY + 100;
+            if (Math.hypot(hState.x - lzX, hState.y - lzY) < 30) {
+               setMissionAccomplished(true);
+            }
+         }
       }
 
       // Clear canvas
@@ -937,6 +1011,13 @@ export default function ShipSim() {
         if (compassCardRef.current) compassCardRef.current.style.transform = `rotate(${-deg}deg)`;;
       }
 
+      const cyclicPuck = document.getElementById('cyclic-puck');
+      if (cyclicPuck && controlsRef.current.simMode === 'heli') {
+        const cx = (heliControlsRef.current.cyclicX / 100) * 72; 
+        const cy = (heliControlsRef.current.cyclicY / 100) * 72;
+        cyclicPuck.style.transform = `translate(${cx}px, ${cy}px)`;
+      }
+
       animationFrameId = requestAnimationFrame(render);
     };
 
@@ -1115,7 +1196,8 @@ export default function ShipSim() {
         onMouseDown={handleMouseDown}
         style={{ 
           transform: `translate(calc(-50% + ${panelPos.x}px), ${panelPos.y}px) scale(${panelScale})`,
-          transformOrigin: 'bottom center'
+          transformOrigin: 'bottom center',
+          display: simMode === 'ship' ? 'flex' : 'none'
         }}
         className={`absolute bottom-8 left-1/2 bg-slate-800 border-2 border-slate-700 rounded-xl p-6 flex flex-col gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_2px_4px_rgba(255,255,255,0.1),inset_0_-4px_10px_rgba(0,0,0,0.5)] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} z-20`}
       >
@@ -1442,6 +1524,106 @@ export default function ShipSim() {
       )}
 
       {/* Physics Panels & Environment Overlays */}
+
+      {simMode === 'heli' && (
+        <div 
+          onMouseDown={handleMouseDown}
+          style={{ 
+            transform: `translate(calc(-50% + ${panelPos.x}px), ${panelPos.y}px) scale(${panelScale})`,
+            transformOrigin: 'bottom center'
+          }}
+          className={`absolute bottom-8 left-1/2 bg-slate-800 border-2 border-slate-700 rounded-xl p-6 flex flex-col gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_2px_4px_rgba(255,255,255,0.1),inset_0_-4px_10px_rgba(0,0,0,0.5)] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} z-20`}
+        >
+          <div className="flex justify-between items-start border-b border-slate-700 pb-3 px-2">
+            <div>
+              <h3 className="text-xs font-bold text-slate-300 tracking-widest font-mono">BELL FLIGHT SYSTEMS</h3>
+              <p className="text-[9px] text-slate-500 font-mono tracking-widest mt-0.5">HELI-OPS FLIGHT CONTROLS</p>
+            </div>
+            <button 
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => {
+                setSimMode('ship');
+              }}
+              className="px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-widest rounded border transition-all mr-2 bg-red-900/50 text-red-400 border-red-700 hover:bg-red-800 hover:text-white"
+            >
+              RETURN TO SHIP
+            </button>
+          </div>
+
+          <div className="flex gap-12 items-end px-4">
+             <div className="flex flex-col items-center justify-end" onMouseDown={e => e.stopPropagation()}>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">COLLECTIVE</span>
+                <input 
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={heliCollective}
+                  onChange={(e) => setHeliCollective(parseInt(e.target.value))}
+                  style={{ writingMode: 'vertical-lr', direction: 'rtl' } as any}
+                  className="w-8 h-48 accent-emerald-500 cursor-pointer"
+                />
+             </div>
+             <div className="flex flex-col items-center justify-center" onMouseDown={e => e.stopPropagation()}>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">CYCLIC</span>
+                <div 
+                  className="w-48 h-48 bg-slate-900 rounded-full border-[6px] border-slate-700 relative overflow-hidden shadow-inner flex items-center justify-center cursor-crosshair"
+                  onMouseMove={(e) => {
+                     if (e.buttons === 1) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = e.clientX - rect.left - 96; 
+                        const y = e.clientY - rect.top - 96;
+                        heliControlsRef.current.cyclicX = Math.max(-100, Math.min(100, (x / 96) * 100));
+                        heliControlsRef.current.cyclicY = Math.max(-100, Math.min(100, (y / 96) * 100));
+                     }
+                  }}
+                  onMouseUp={() => {
+                     heliControlsRef.current.cyclicX = 0;
+                     heliControlsRef.current.cyclicY = 0;
+                  }}
+                  onMouseLeave={() => {
+                     heliControlsRef.current.cyclicX = 0;
+                     heliControlsRef.current.cyclicY = 0;
+                  }}
+                >
+                   <div className="absolute w-full h-0.5 bg-slate-800"></div>
+                   <div className="absolute h-full w-0.5 bg-slate-800"></div>
+                   <div id="cyclic-puck" className="w-12 h-12 bg-emerald-500 rounded-full absolute shadow-lg border-2 border-white pointer-events-none transition-transform duration-75"></div>
+                </div>
+             </div>
+             <div className="flex flex-col items-center justify-end" onMouseDown={e => e.stopPropagation()}>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">YAW (PEDALS)</span>
+                <input 
+                  type="range"
+                  min="-100"
+                  max="100"
+                  value={heliPedals}
+                  onChange={(e) => setHeliPedals(parseInt(e.target.value))}
+                  onMouseUp={() => setHeliPedals(0)}
+                  onMouseLeave={() => setHeliPedals(0)}
+                  className="w-48 h-8 accent-amber-500 cursor-pointer"
+                />
+             </div>
+          </div>
+        </div>
+      )}
+
+      {missionAccomplished && (
+        <div className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center pointer-events-auto">
+          <div className="bg-slate-900 border border-emerald-500 shadow-[0_0_50px_rgba(16,185,129,0.5)] rounded-2xl p-12 flex flex-col items-center animate-bounce">
+             <h2 className="text-5xl font-bold text-emerald-400 mb-6 drop-shadow-md">MISSION ACCOMPLISHED</h2>
+             <p className="text-slate-300 text-xl mb-8">You successfully navigated the helicopter to the Jetty Landing Zone.</p>
+             <button 
+               onClick={() => {
+                 setMissionAccomplished(false);
+                 setSimMode('ship');
+               }}
+               className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-full shadow-lg uppercase tracking-widest"
+             >
+               Return to Ship
+             </button>
+          </div>
+        </div>
+      )}
 
       {/* Welcome Screen Overlay */}
       {showWelcome && (
