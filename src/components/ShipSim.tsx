@@ -8,8 +8,8 @@ export default function ShipSim() {
 
   // Ship physics state refs
   const shipState = useRef({
-    x: 400,
-    y: 300,
+    x: 460,
+    y: 150,
     heading: 0, // in radians
     speed: 0
   });
@@ -39,6 +39,7 @@ export default function ShipSim() {
   const islandsRef = useRef<Array<{points: number[][]}>>([]);
   const [shipDamage, setShipDamage] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [isDocked, setIsDocked] = useState(true);
   
   // Buoy controls
   const [showPortBuoy, setShowPortBuoy] = useState(true);
@@ -47,7 +48,8 @@ export default function ShipSim() {
   const controlsRef = useRef({ 
     throttle: 0, rudder: 0, navLightsOn: true, whiteLightsOn: true,
     windSpeed: 0, windDir: 0, currentSpeed: 0, currentDir: 0, jettyType: 'straight',
-    showPortBuoy: true, showStbdBuoy: true, shipClass: 'patrol', damageEnabled: false, portMode: 'home'
+    showPortBuoy: true, showStbdBuoy: true, shipClass: 'patrol', damageEnabled: false, portMode: 'home',
+    isDocked: true
   });
   const particlesRef = useRef<{x: number, y: number, life: number}[]>([]);
 
@@ -55,9 +57,9 @@ export default function ShipSim() {
     controlsRef.current = {
       throttle, rudder, navLightsOn, whiteLightsOn,
       windSpeed, windDir, currentSpeed, currentDir, jettyType,
-      showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode
+      showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked
     };
-  }, [throttle, rudder, navLightsOn, whiteLightsOn, windSpeed, windDir, currentSpeed, currentDir, jettyType, showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode]);
+  }, [throttle, rudder, navLightsOn, whiteLightsOn, windSpeed, windDir, currentSpeed, currentDir, jettyType, showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked]);
 
   useEffect(() => {
     const generateIsland = (cx: number, cy: number, radius: number) => {
@@ -279,6 +281,13 @@ export default function ShipSim() {
         state.heading += (state.speed > 0 ? turnRate : -turnRate) * dt;
       }
 
+      if (controlsRef.current.isDocked) {
+        state.speed = 0;
+        state.x = 460;
+        state.y = 150;
+        state.heading = 0;
+      }
+
       // Calculate environmental drift
       // Wind: blows FROM windDir. Converting to radians for math. Pushes towards windDir + 180.
       const windRad = (windDir + 180) * (Math.PI / 180);
@@ -476,9 +485,20 @@ export default function ShipSim() {
         ctx.restore();
       });
 
-      // Draw the dock (relative to ship)
+      // Draw the dock and mainland (relative to ship)
       const dockX = 500 - state.x + canvas.width / 2;
       const dockY = 50 - state.y + canvas.height / 2;
+      
+      // Draw Mainland continent attached to the right side of the dock
+      ctx.save();
+      ctx.translate(dockX, dockY);
+      ctx.fillStyle = '#1e3a8a'; // deep blue shallow edge
+      ctx.fillRect(40, -4000, 15, 8000);
+      ctx.fillStyle = '#b45309'; // beach/edge
+      ctx.fillRect(45, -4000, 5, 8000);
+      ctx.fillStyle = '#166534'; // green land
+      ctx.fillRect(50, -4000, 4000, 8000);
+      ctx.restore();
       const { jettyType: currentJettyType, windSpeed: currentWindSpeed, windDir: currentWindDir } = controlsRef.current;
       
       ctx.save();
@@ -543,6 +563,28 @@ export default function ShipSim() {
       ctx.restore();
 
       ctx.restore();
+
+      ctx.restore();
+
+      // Draw Mooring lines if docked
+      if (controlsRef.current.isDocked) {
+        ctx.save();
+        ctx.translate(dockX, dockY);
+        ctx.strokeStyle = '#d97706'; // amber-600 rope
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 2]);
+        
+        ctx.beginPath();
+        // Bow line
+        ctx.moveTo(-40, 60); ctx.lineTo(10, 20);
+        // Stern line
+        ctx.moveTo(-40, 140); ctx.lineTo(10, 180);
+        // Spring lines
+        ctx.moveTo(-40, 80); ctx.lineTo(10, 120);
+        ctx.moveTo(-40, 120); ctx.lineTo(10, 80);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       // Draw the ship
       ctx.save();
@@ -1102,6 +1144,18 @@ export default function ShipSim() {
         </div>
         </div>
       </div>
+
+      {/* Slip the Jetty Button */}
+      {isDocked && !showWelcome && (
+        <div className="absolute top-1/2 left-1/2 ml-[150px] -mt-[50px] z-50">
+          <button 
+            onClick={() => setIsDocked(false)}
+            className="bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 px-6 rounded-full shadow-[0_0_15px_rgba(217,119,6,0.6)] border-2 border-amber-400 hover:scale-105 transition-transform uppercase tracking-widest text-sm animate-pulse hover:animate-none"
+          >
+            Slip the Jetty
+          </button>
+        </div>
+      )}
 
       {/* Welcome Screen Overlay */}
       {showWelcome && (
