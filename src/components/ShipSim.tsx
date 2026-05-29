@@ -327,8 +327,9 @@ export default function ShipSim() {
     // object-cover scales uniformly to cover the element, keeping it centered.
     const scale = Math.max(rect.width / canvas.width, rect.height / canvas.height);
     
-    const dx = dx_rect / scale;
-    const dy = dy_rect / scale;
+    // Adjust dx and dy by the zoom level so clicks remain accurate when zoomed in or out
+    const dx = (dx_rect / scale) / zoomRef.current;
+    const dy = (dy_rect / scale) / zoomRef.current;
     
     const clientX = dx + canvas.width / 2;
     const clientY = dy + canvas.height / 2;
@@ -1206,6 +1207,62 @@ export default function ShipSim() {
       }
 
       ctx.restore(); // restore ship transform
+      
+      // Draw Detached Helicopter
+      if (controlsRef.current.simMode === 'heli') {
+        ctx.save();
+        const hState = heliState.current;
+        const heliScreenX = hState.x - camX + canvas.width / 2;
+        const heliScreenY = hState.y - camY + canvas.height / 2;
+        
+        ctx.translate(heliScreenX, heliScreenY);
+        ctx.rotate(hState.heading);
+        
+        // Shadow (simulate altitude)
+        if (hState.altitude > 0) {
+           ctx.save();
+           ctx.translate(hState.altitude * 0.5, hState.altitude * 0.5);
+           ctx.fillStyle = 'rgba(0,0,0,0.3)';
+           ctx.beginPath();
+           if (ctx.roundRect) ctx.roundRect(-4, -8, 8, 14, 3);
+           else ctx.fillRect(-4, -8, 8, 14);
+           ctx.fill();
+           ctx.restore();
+        }
+        
+        // Draw Helicopter body
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(-1, 4, 2, 12); // tail boom
+        
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(-4, -8, 8, 14, 3);
+        else ctx.fillRect(-4, -8, 8, 14);
+        ctx.fill();
+        
+        // Cockpit glass
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(0, -5, 3, Math.PI, 0);
+        ctx.fill();
+        
+        // Spinning Main rotor
+        ctx.save();
+        ctx.translate(0, -1);
+        const rotorSpeed = hState.altitude > 0.1 || controlsRef.current.simMode === 'heli' ? 20 : 0;
+        ctx.rotate((Date.now() % 1000) / 1000 * Math.PI * 2 * rotorSpeed);
+        
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 20, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(-1.5, -20, 3, 40);
+        ctx.fillRect(-20, -1.5, 40, 3);
+        ctx.restore();
+        
+        ctx.restore();
+      }
       
       ctx.restore(); // restore global zoom scale
 
