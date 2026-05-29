@@ -228,18 +228,26 @@ export default function ShipSim() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const clientX = (e.clientX - rect.left) * scaleX;
-    const clientY = (e.clientY - rect.top) * scaleY;
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    const dx_rect = clickX - rect.width / 2;
+    const dy_rect = clickY - rect.height / 2;
+    
+    // object-cover scales uniformly to cover the element, keeping it centered.
+    const scale = Math.max(rect.width / canvas.width, rect.height / canvas.height);
+    
+    const dx = dx_rect / scale;
+    const dy = dy_rect / scale;
+    
+    const clientX = dx + canvas.width / 2;
+    const clientY = dy + canvas.height / 2;
     
     // Convert to world space
     const state = shipState.current;
     
     // Helipad interaction
-    if (controlsRef.current.simMode === 'ship' && shipClass === 'frigate') {
-        const dx = clientX - canvas.width / 2;
-        const dy = clientY - canvas.height / 2;
+    if (controlsRef.current.simMode === 'ship' && controlsRef.current.shipClass === 'frigate') {
         const cosH = Math.cos(-state.heading);
         const sinH = Math.sin(-state.heading);
         const shipLocalX = dx * cosH - dy * sinH;
@@ -281,10 +289,19 @@ export default function ShipSim() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const clientX = (e.clientX - rect.left) * scaleX;
-    const clientY = (e.clientY - rect.top) * scaleY;
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    const dx_rect = clickX - rect.width / 2;
+    const dy_rect = clickY - rect.height / 2;
+    
+    const scale = Math.max(rect.width / canvas.width, rect.height / canvas.height);
+    
+    const dx = dx_rect / scale;
+    const dy = dy_rect / scale;
+    
+    const clientX = dx + canvas.width / 2;
+    const clientY = dy + canvas.height / 2;
     
     const state = shipState.current;
     const worldX = clientX + state.x - canvas.width / 2;
