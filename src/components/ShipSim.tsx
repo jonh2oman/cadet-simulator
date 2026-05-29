@@ -228,8 +228,10 @@ export default function ShipSim() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.clientX - rect.left;
-    const clientY = e.clientY - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const clientX = (e.clientX - rect.left) * scaleX;
+    const clientY = (e.clientY - rect.top) * scaleY;
     
     // Convert to world space
     const state = shipState.current;
@@ -242,7 +244,13 @@ export default function ShipSim() {
         const sinH = Math.sin(-state.heading);
         const shipLocalX = dx * cosH - dy * sinH;
         const shipLocalY = dx * sinH + dy * cosH;
-        if (Math.abs(shipLocalX) < 15 && shipLocalY > 30 && shipLocalY < 60) {
+        
+        // scale back to unscaled coordinates (frigate scale is 2.8125)
+        const unscaledX = shipLocalX / 2.8125;
+        const unscaledY = shipLocalY / 2.8125;
+        
+        // Helipad is at (0, 40) in unscaled coordinates
+        if (Math.hypot(unscaledX, unscaledY - 40) < 25) {
            heliState.current = {
              x: state.x - Math.sin(state.heading) * 45,
              y: state.y + Math.cos(state.heading) * 45,
@@ -273,8 +281,10 @@ export default function ShipSim() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.clientX - rect.left;
-    const clientY = e.clientY - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const clientX = (e.clientX - rect.left) * scaleX;
+    const clientY = (e.clientY - rect.top) * scaleY;
     
     const state = shipState.current;
     const worldX = clientX + state.x - canvas.width / 2;
