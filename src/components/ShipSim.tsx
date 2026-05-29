@@ -112,6 +112,7 @@ export default function ShipSim() {
   const [sternThruster, setSternThruster] = useState(0); // -100 to 100
   const [navLightsOn, setNavLightsOn] = useState(true);
   const [whiteLightsOn, setWhiteLightsOn] = useState(true);
+  const [anchorDropped, setAnchorDropped] = useState(false);
 
   // Realism controls
   const [windSpeed, setWindSpeed] = useState(0); // 0-30 knots
@@ -145,7 +146,7 @@ export default function ShipSim() {
 
   const controlsRef = useRef({
     throttle: 0, rudder: 0, bowThruster: 0, sternThruster: 0,
-    navLightsOn: true, whiteLightsOn: false,
+    navLightsOn: true, whiteLightsOn: false, anchorDropped: false,
     windSpeed: 0, windDir: 0, currentSpeed: 0, currentDir: 90, jettyType: 'straight',
     showPortBuoy: true, showStbdBuoy: true, shipClass: 'patrol', damageEnabled: false, portMode: 'home',
     isDocked: false, simMode: 'ship'
@@ -165,13 +166,13 @@ export default function ShipSim() {
 
   useEffect(() => {
     controlsRef.current = {
-      throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn,
+      throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, anchorDropped,
       windSpeed, windDir, currentSpeed, currentDir, jettyType,
       showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode
     };
     heliControlsRef.current.collective = heliCollective;
     heliControlsRef.current.pedals = heliPedals;
-  }, [throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, windSpeed, windDir, currentSpeed, currentDir, jettyType, showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode, heliCollective, heliPedals]);
+  }, [throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, anchorDropped, windSpeed, windDir, currentSpeed, currentDir, jettyType, showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode, heliCollective, heliPedals]);
 
   useEffect(() => {
     const generateIsland = (cx: number, cy: number, radius: number) => {
@@ -503,15 +504,19 @@ export default function ShipSim() {
       // Calculate environmental drift
       // Wind: blows FROM windDir. Converting to radians for math. Pushes towards windDir + 180.
       const windRad = (windDir + 180) * (Math.PI / 180);
-      const windForce = (windSpeed / 30) * 3; // Max 3 units of drift
+      const windForce = controlsRef.current.anchorDropped ? 0 : (windSpeed / 30) * 3; // Max 3 units of drift
       const windDx = Math.sin(windRad) * windForce;
       const windDy = -Math.cos(windRad) * windForce; // -cos because Canvas Y is inverted
 
       // Current: Set is the direction current flows TOWARDS.
       const currentRad = currentDir * (Math.PI / 180);
-      const currentForce = (currentSpeed / 5) * 4; // Max 4 units of drift (currents are strong)
+      const currentForce = controlsRef.current.anchorDropped ? 0 : (currentSpeed / 5) * 4; // Max 4 units of drift
       const currentDx = Math.sin(currentRad) * currentForce;
       const currentDy = -Math.cos(currentRad) * currentForce;
+
+      if (controlsRef.current.anchorDropped) {
+        state.speed *= 0.92; // high drag when anchored
+      }
 
       // Move ship (Engine thrust + Wind drift + Current drift + Lateral thrusters)
       const newX = state.x + (Math.sin(state.heading) * state.speed * 10 + windDx * 10 + currentDx * 10 + lateralDx * 10) * dt;
@@ -1094,6 +1099,36 @@ export default function ShipSim() {
         ctx.fill();
       }
 
+      // Draw deployed anchor
+      if (controlsRef.current.anchorDropped) {
+        ctx.save();
+        const bowY = isMilitary ? -28 * (shipClass === 'frigate' ? 2.0 : 1.5) : -28;
+        
+        ctx.strokeStyle = '#94a3b8'; // Chain color
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, bowY);
+        ctx.lineTo(-12, bowY - 15);
+        ctx.stroke();
+
+        ctx.translate(-12, bowY - 15);
+        ctx.rotate(-state.heading); // Anchor sits on seafloor
+        
+        ctx.fillStyle = '#cbd5e1'; 
+        ctx.beginPath();
+        ctx.arc(0, 0, 1.5, 0, Math.PI*2); 
+        ctx.fill();
+        ctx.fillRect(-0.5, 1.5, 1, 8); 
+        ctx.fillRect(-3, 3, 6, 1); 
+        ctx.beginPath();
+        ctx.arc(0, 7, 4, 0, Math.PI, false); 
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.stroke();
+        
+        ctx.restore();
+      }
+
       // Draw Maple Leaf on all ships (Canadian feel)
       ctx.fillStyle = '#ef4444';
       ctx.save();
@@ -1428,6 +1463,17 @@ export default function ShipSim() {
             </div>
           </div>
           <div className="flex gap-3 items-center">
+            <button 
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => setAnchorDropped(!anchorDropped)}
+              className={`px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-widest rounded border transition-all ${
+                anchorDropped 
+                  ? 'bg-amber-900/50 text-amber-400 border-amber-700 shadow-[inset_0_0_8px_rgba(245,158,11,0.6)]' 
+                  : 'bg-slate-800 text-slate-400 border-slate-600 hover:bg-slate-700 hover:text-slate-200 shadow-[inset_0_0_8px_rgba(0,0,0,0.5)]'
+              }`}
+            >
+              {anchorDropped ? 'WEIGH ANCHOR' : 'DROP ANCHOR'}
+            </button>
             <button 
               onMouseDown={(e) => e.stopPropagation()}
               onClick={() => {
