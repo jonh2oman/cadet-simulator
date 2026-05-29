@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Anchor, Navigation, Radio } from 'lucide-react';
+import { Anchor, Navigation, Radio, BookOpen } from 'lucide-react';
 import ShipSim from './components/ShipSim';
 import RadioGame from './components/RadioGame';
+import AlphabetGame from './components/AlphabetGame';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'ship' | 'radio'>('ship');
+  const [activeTab, setActiveTab] = useState<'ship' | 'radio' | 'alphabet'>('ship');
 
   return (
     <div className="h-screen w-screen flex flex-col font-sans bg-slate-950 overflow-hidden text-slate-200">
@@ -45,13 +46,24 @@ function App() {
             <Radio size={18} />
             Radio Game
           </button>
+          <button
+            onClick={() => setActiveTab('alphabet')}
+            className={`flex items-center gap-2 px-8 rounded-md transition-all font-bold tracking-widest text-sm uppercase ${
+              activeTab === 'alphabet' 
+                ? 'bg-slate-800 text-purple-400 shadow-md border border-slate-700' 
+                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900'
+            }`}
+          >
+            <BookOpen size={18} />
+            Alphabet
+          </button>
         </div>
       </header>
 
       {/* Main Full-Screen Content Area */}
       <main className="flex-1 w-full h-full relative">
         {/* We use conditional rendering, but if performance is an issue for the canvas reloading, we could use CSS hidden. For now, conditional rendering is cleaner. */}
-        {activeTab === 'ship' ? <ShipSim /> : <RadioGame />}
+        {activeTab === 'ship' ? <ShipSim /> : activeTab === 'radio' ? <RadioGame /> : <AlphabetGame />}
       </main>
     </div>
   );
