@@ -1112,7 +1112,7 @@ export default function ShipSim() {
             <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
             
             <div className="relative z-10 flex flex-col items-center">
-              <img src="/logo.png" alt="Cadet Simulator Logo" className="w-32 h-32 mb-6 drop-shadow-xl" />
+              <img src="./logo.png" alt="Cadet Simulator Logo" className="w-32 h-32 mb-6 drop-shadow-xl" />
               
               <h1 className="text-3xl font-bold text-white mb-2 tracking-wide">CADET SIMULATOR</h1>
               <p className="text-slate-400 text-center mb-8 max-w-lg">
