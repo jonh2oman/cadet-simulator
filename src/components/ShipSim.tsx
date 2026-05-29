@@ -1275,24 +1275,56 @@ export default function ShipSim() {
             </div>
             
             {steeringMode === 'azimuth' ? (
-              <div className="relative w-64 h-24 bg-slate-900 rounded-full border-[6px] border-slate-950 shadow-[inset_0_5px_15px_rgba(0,0,0,1)] flex items-center px-4 mt-6 mb-6">
-                {/* Tick marks */}
-                <div className="absolute inset-x-8 top-1 flex justify-between pointer-events-none">
-                   {[-45, -30, -15, 0, 15, 30, 45].map(val => (
-                      <div key={val} className="flex flex-col items-center">
-                        <div className={`w-0.5 h-1.5 ${val === 0 ? 'bg-amber-500' : 'bg-slate-700'}`}></div>
-                      </div>
-                   ))}
+              <div 
+                ref={wheelRef}
+                className="steering-wheel-container relative w-36 h-36 mt-2 mb-2 rounded-full cursor-pointer touch-none flex items-center justify-center bg-slate-900 border-[4px] border-slate-800 shadow-[inset_0_10px_20px_rgba(0,0,0,0.8)]"
+                onMouseDown={(e) => { setIsTurningWheel(true); updateWheelAngle(e.clientX, e.clientY); }}
+              >
+                {/* Scale markings on the base */}
+                <div className="absolute inset-1 rounded-full border-4 border-transparent pointer-events-none" style={{
+                  borderTopColor: '#ef4444', borderLeftColor: '#ef4444', // Red for port
+                  borderRightColor: '#10b981', borderBottomColor: '#10b981', // Green for stbd
+                  transform: 'rotate(-45deg)' 
+                }}></div>
+                {/* Hide the bottom half of the scale since rudder only goes to 45 */}
+                <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-slate-900 z-0 rounded-b-full"></div>
+                {/* Base center circle */}
+                <div className="absolute inset-5 rounded-full bg-slate-950 shadow-[inset_0_5px_15px_rgba(0,0,0,1)] z-0">
+                  {/* Tick marks around the dial */}
+                  <div className="absolute top-1 left-1/2 -translate-x-1/2 w-0.5 h-2 bg-amber-500"></div>
+                  <div className="absolute top-2.5 left-4 w-2 h-0.5 bg-red-500 rotate-45"></div>
+                  <div className="absolute top-2.5 right-4 w-2 h-0.5 bg-emerald-500 -rotate-45"></div>
                 </div>
 
-                <input 
-                  type="range" 
-                  min="-45" 
-                  max="45" 
-                  value={rudder} 
-                  onChange={(e) => setRudder(parseInt(e.target.value))}
-                  className="azimuth-knob w-full outline-none z-10 cursor-pointer" 
-                />
+                {/* Rotating Azimuth Puck */}
+                <div 
+                  className="absolute inset-0 transition-transform duration-75 z-10"
+                  style={{ transform: `rotate(${rudder}deg)` }}
+                >
+                  {/* Protruding Handle (Lever pointing down towards user) */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 w-5 h-16 bg-gradient-to-r from-slate-700 via-slate-500 to-slate-800 rounded-b-lg origin-top z-0" style={{ transform: 'rotate(180deg)' }}>
+                    <div className="w-full h-8 bg-gradient-to-b from-slate-800 to-black rounded-b-lg absolute bottom-0 shadow-[0_5px_10px_rgba(0,0,0,0.8)] border-x border-b border-slate-600"></div>
+                  </div>
+                  
+                  {/* The Black Knob */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-gradient-to-b from-slate-700 to-slate-900 rounded-full border-[3px] border-slate-800 shadow-[0_10px_20px_rgba(0,0,0,0.8),inset_0_2px_5px_rgba(255,255,255,0.2)] flex items-center justify-center z-10">
+                    <div className="w-16 h-16 bg-slate-950 rounded-full shadow-inner flex items-center justify-center">
+                      {/* Compass Star Logo */}
+                      <div className="relative w-10 h-10">
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-1.5 h-10 bg-gradient-to-r from-slate-300 to-slate-500 relative">
+                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[3px] border-r-[3px] border-b-[4px] border-l-transparent border-r-transparent border-b-white"></div>
+                          </div>
+                          <div className="absolute w-10 h-1.5 bg-gradient-to-b from-slate-300 to-slate-500"></div>
+                        </div>
+                        <div className="absolute inset-0 flex items-center justify-center rotate-45">
+                          <div className="w-1 h-7 bg-slate-600"></div>
+                          <div className="absolute w-7 h-1 bg-slate-600"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <div 
