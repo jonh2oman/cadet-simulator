@@ -1074,7 +1074,21 @@ export default function ShipSim() {
                </div>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+            <button 
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => {
+                setIsPaused(!isPaused);
+                isPausedRef.current = !isPaused;
+              }}
+              className={`px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-widest rounded border transition-all mr-2 ${
+                isPaused 
+                  ? 'bg-red-900/50 text-red-400 border-red-700 animate-pulse shadow-[inset_0_0_8px_rgba(220,38,38,0.6)]' 
+                  : 'bg-slate-800 text-slate-400 border-slate-600 hover:bg-slate-700 hover:text-slate-200 shadow-[inset_0_0_8px_rgba(0,0,0,0.5)]'
+              }`}
+            >
+              {isPaused ? 'RESUME' : 'PAUSE'}
+            </button>
             <div className="flex flex-col items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8),inset_0_1px_2px_rgba(255,255,255,0.5)]"></div>
               <span className="text-[7px] text-slate-400 font-mono">SYS OK</span>
@@ -1262,23 +1276,6 @@ export default function ShipSim() {
           className="absolute z-10 bottom-12 left-1/2 -translate-x-1/2 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-full shadow-[0_0_30px_rgba(16,185,129,0.8)] border-4 border-emerald-400 tracking-widest text-lg transition-transform hover:scale-105 animate-bounce"
         >
           TIE UP SECURELY
-        </button>
-      )}
-
-      {/* Pause Button */}
-      {!showWelcome && (
-        <button 
-          onClick={() => {
-            setIsPaused(!isPaused);
-            isPausedRef.current = !isPaused;
-          }}
-          className={`absolute z-10 top-6 right-6 px-6 py-2 font-bold rounded-full shadow-lg border-2 tracking-widest text-sm transition-all ${
-            isPaused 
-              ? 'bg-red-600 hover:bg-red-500 text-white border-red-400 animate-pulse' 
-              : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-600'
-          }`}
-        >
-          {isPaused ? 'RESUME SIM' : 'PAUSE SIM'}
         </button>
       )}
 
