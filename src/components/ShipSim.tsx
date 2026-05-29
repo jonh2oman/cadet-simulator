@@ -97,6 +97,8 @@ export default function ShipSim() {
     heading: 0, // in radians
     speed: 0
   });
+  
+  const zoomRef = useRef(1);
 
   const buoys = useRef([
     { id: '1', type: 'port', x: 200, y: 200 }, // Green
@@ -666,6 +668,11 @@ export default function ShipSim() {
       ctx.fillStyle = '#0f172a'; // slate-900 water color
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.scale(zoomRef.current, zoomRef.current);
+      ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
       const camX = controlsRef.current.simMode === 'heli' ? heliState.current.x : state.x;
       const camY = controlsRef.current.simMode === 'heli' ? heliState.current.y + 150 : state.y;
 
@@ -1166,7 +1173,10 @@ export default function ShipSim() {
         }
       }
 
-      ctx.restore();
+      ctx.restore(); // restore global zoom scale
+      
+      ctx.restore(); // restore ship transform
+
       // Update UI HUD
       if (speedTextRef.current) {
         speedTextRef.current.innerText = (Math.abs(state.speed) * 10).toFixed(1) + ' kts';
@@ -1205,6 +1215,11 @@ export default function ShipSim() {
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
         onMouseLeave={handleCanvasMouseUp}
+        onWheel={(e) => {
+          // Adjust zoom
+          const newZoom = zoomRef.current * (1 - Math.sign(e.deltaY) * 0.1);
+          zoomRef.current = Math.max(0.2, Math.min(5, newZoom));
+        }}
       >
         <canvas 
           ref={canvasRef}
