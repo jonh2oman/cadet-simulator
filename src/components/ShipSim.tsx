@@ -394,7 +394,7 @@ export default function ShipSim() {
 
       // Collision Detection
       let collision = false;
-      const shipRadius = 18 * visualScale;
+      const shipRadius = 12 * visualScale;
       
       // Jetty & Bridge hitboxes
       let jettyRects: {x:number, y:number, w:number, h:number}[] = [];
