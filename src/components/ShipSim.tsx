@@ -109,6 +109,41 @@ export default function ShipSim() {
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, panelX: 0, panelY: 0 });
 
+  // Custom Throttle Lever State
+  const [isDraggingLever, setIsDraggingLever] = useState(false);
+  const leverTrackRef = useRef<HTMLDivElement>(null);
+
+  const updateLeverFromEvent = (e: React.PointerEvent) => {
+    if (!leverTrackRef.current) return;
+    const rect = leverTrackRef.current.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    let pct = 1 - (y / rect.height); // 0 to 1 (bottom to top)
+    pct = Math.max(0, Math.min(1, pct));
+    const val = Math.round((pct * 200) - 100);
+    if (Math.abs(val) < 5) setThrottle(0);
+    else setThrottle(val);
+  };
+
+  const handleLeverPointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    setIsDraggingLever(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    updateLeverFromEvent(e);
+  };
+
+  const handleLeverPointerMove = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    if (isDraggingLever) {
+      updateLeverFromEvent(e);
+    }
+  };
+
+  const handleLeverPointerUp = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    setIsDraggingLever(false);
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'BUTTON') return;
     // Don't drag if we are turning the wheel
@@ -1143,28 +1178,44 @@ export default function ShipSim() {
               </span>
             </div>
             
-            <div className="relative w-16 h-48 bg-slate-900 rounded-lg border-x-4 border-y-8 border-slate-950 shadow-[inset_0_5px_15px_rgba(0,0,0,1)] flex items-center justify-center">
-              {/* Track ticks */}
-              <div className="absolute inset-y-2 left-1 flex flex-col justify-between py-2">
-                {[100, 50, 0, -50, -100].map(val => (
-                  <div key={val} className="flex items-center gap-1">
-                    <div className="w-1.5 h-0.5 bg-slate-700"></div>
-                    <span className="text-[8px] font-mono text-slate-600">{val}</span>
-                  </div>
-                ))}
+            {/* Realistic Throttle Base */}
+            <div 
+              ref={leverTrackRef}
+              onPointerDown={handleLeverPointerDown}
+              onPointerMove={handleLeverPointerMove}
+              onPointerUp={handleLeverPointerUp}
+              className="relative w-24 h-56 bg-gradient-to-r from-slate-400 via-slate-100 to-slate-400 rounded-xl shadow-[0_10px_20px_rgba(0,0,0,0.8),inset_0_-5px_10px_rgba(0,0,0,0.5),inset_0_5px_10px_rgba(255,255,255,0.8)] border border-slate-300 flex items-center justify-center cursor-pointer select-none touch-none overflow-hidden"
+            >
+              {/* Inner Slot */}
+              <div className="absolute w-6 h-48 bg-slate-950 rounded-full shadow-[inset_0_5px_15px_rgba(0,0,0,1)] flex justify-center">
+                <div className="w-0.5 h-full bg-white/10"></div>
               </div>
               
-              {/* Center marker */}
-              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-amber-500/30 -translate-y-1/2 z-0"></div>
-              
-              <input 
-                type="range" 
-                min="-100" 
-                max="100" 
-                value={throttle} 
-                onChange={(e) => setThrottle(parseInt(e.target.value))}
-                className="throttle-lever absolute w-48 h-2 -rotate-90 origin-center outline-none z-10 cursor-pointer" 
-              />
+              {/* Scale Markings */}
+              <div className="absolute inset-y-4 left-1 flex flex-col justify-between py-1 font-mono text-[9px] font-bold text-slate-800 pointer-events-none">
+                <span>100</span><span>50</span><span>0</span><span>-50</span><span>-100</span>
+              </div>
+              <div className="absolute inset-y-4 right-1 flex flex-col justify-between py-1 font-mono text-[9px] font-bold text-slate-800 pointer-events-none text-right tracking-tighter">
+                <span>AHD</span><span></span><span></span><span></span><span>AST</span>
+              </div>
+
+              {/* The Lever Arm and Handle */}
+              <div 
+                className="absolute left-1/2 w-16 h-16 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-10"
+                style={{ top: `${50 - (throttle / 2)}%`, transition: isDraggingLever ? 'none' : 'top 0.1s ease-out' }}
+              >
+                {/* Arm Base / Joint */}
+                <div className="w-8 h-4 bg-gradient-to-r from-slate-500 to-slate-300 rounded-t-lg -mb-1 shadow-[inset_0_2px_2px_rgba(255,255,255,0.5)]"></div>
+                {/* Arm Shaft */}
+                <div className="w-4 h-6 bg-gradient-to-r from-slate-400 via-slate-200 to-slate-400 shadow-[inset_0_0_5px_rgba(0,0,0,0.5)] z-0"></div>
+                {/* Grip */}
+                <div className="w-20 h-10 bg-gradient-to-b from-slate-800 to-black rounded-lg shadow-[0_10px_15px_rgba(0,0,0,0.8),inset_0_2px_5px_rgba(255,255,255,0.3)] border border-slate-600 -mt-2 z-10 flex items-center justify-center relative">
+                   <div className="absolute top-1 left-2 right-2 h-2 bg-gradient-to-b from-white/20 to-transparent rounded-full pointer-events-none"></div>
+                   {/* Grip accents */}
+                   <div className="w-1.5 h-5 bg-blue-500 rounded-full shadow-[0_0_5px_rgba(59,130,246,0.8),inset_0_1px_3px_rgba(0,0,0,0.8)] opacity-90 mx-1"></div>
+                   <div className="w-1.5 h-5 bg-blue-500 rounded-full shadow-[0_0_5px_rgba(59,130,246,0.8),inset_0_1px_3px_rgba(0,0,0,0.8)] opacity-90 mx-1"></div>
+                </div>
+              </div>
             </div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Lever <span className="text-slate-500 font-normal">[Q/Z]</span></span>
           </div>
