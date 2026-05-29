@@ -455,15 +455,17 @@ export default function ShipSim() {
         inertia = 1.8; // Very fast acceleration
         turnInertia = 2.0; // Very fast turning
         visualScale = 0.78125; // Small size (scaled up another 25%)
-        maxSpeedMultiplier = 1.5; // High top speed
+        maxSpeedMultiplier = 0.45; // ~45 knots
       } else if (shipClass === 'corvette') {
         inertia = 0.5;
         turnInertia = 0.6;
         visualScale = 1.875; // (scaled up another 25%)
+        maxSpeedMultiplier = 0.35; // ~35 knots
       } else if (shipClass === 'frigate') {
         inertia = 0.25;
         turnInertia = 0.3;
         visualScale = 2.8125; // (scaled up another 25%)
+        maxSpeedMultiplier = 0.30; // ~30 knots
       }
 
       // Acceleration based on throttle (-100 to 100)
