@@ -4,7 +4,7 @@ export default function ShipSim() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const speedTextRef = useRef<HTMLSpanElement>(null);
   const compassTextRef = useRef<HTMLSpanElement>(null);
-  const compassDialRef = useRef<HTMLDivElement>(null);
+  const compassCardRef = useRef<HTMLDivElement>(null);
 
   // Ship physics state refs
   const shipState = useRef({
@@ -845,16 +845,17 @@ export default function ShipSim() {
       }
       
       ctx.restore();
-
       // Update UI HUD
       if (speedTextRef.current) {
         speedTextRef.current.innerText = (Math.abs(state.speed) * 10).toFixed(1) + ' kts';
       }
-      if (compassTextRef.current || compassDialRef.current) {
-        let deg = (state.heading * 180 / Math.PI) % 360;
+      if (compassTextRef.current || compassCardRef.current) {
+        // Ship heading: 0 is North (Up), 90 is East (Right)
+        // Screen coords: North is -y, East is +x.
+        let deg = state.heading * (180 / Math.PI);
         if (deg < 0) deg += 360;
-        if (compassTextRef.current) compassTextRef.current.innerText = deg.toFixed(0).padStart(3, '0') + '°';
-        if (compassDialRef.current) compassDialRef.current.style.transform = `rotate(${-deg}deg)`;
+        if (compassTextRef.current) compassTextRef.current.innerText = `${Math.round(deg).toString().padStart(3, '0')}°`;
+        if (compassCardRef.current) compassCardRef.current.style.transform = `rotate(${-deg}deg)`;;
       }
 
       animationFrameId = requestAnimationFrame(render);
@@ -1076,12 +1077,7 @@ export default function ShipSim() {
             </div>
             <div className="flex flex-col items-center">
                <span className="text-[7px] text-slate-500 font-mono mb-1">HEADING</span>
-               <div className="bg-slate-950 border border-slate-700 rounded px-2 py-0.5 flex items-center gap-1.5 min-w-[55px] justify-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]">
-                 <div className="w-2.5 h-2.5 rounded-full flex flex-col items-center relative bg-slate-800 border border-slate-600 overflow-hidden">
-                   <div ref={compassDialRef} className="absolute inset-0">
-                     <div className="w-0.5 h-1.5 bg-red-500 mx-auto"></div>
-                   </div>
-                 </div>
+               <div className="bg-slate-950 border border-slate-700 rounded px-2 py-0.5 min-w-[45px] text-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]">
                  <span ref={compassTextRef} className="text-xs text-amber-400 font-mono drop-shadow-[0_0_2px_rgba(251,191,36,0.5)]">000°</span>
                </div>
             </div>
@@ -1171,6 +1167,33 @@ export default function ShipSim() {
               />
             </div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Lever <span className="text-slate-500 font-normal">[Q/Z]</span></span>
+          </div>
+
+          {/* Traditional Compass */}
+          <div className="flex flex-col items-center px-2 pt-6">
+             <div className="relative w-32 h-32 bg-slate-900 rounded-full border-4 border-slate-950 shadow-[0_5px_15px_rgba(0,0,0,0.5),inset_0_5px_15px_rgba(0,0,0,1)] flex items-center justify-center overflow-hidden">
+               {/* Fixed Lubber Line */}
+               <div className="absolute top-0 w-1 h-3 bg-red-500 z-20 shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>
+               <div className="absolute top-3 w-0 h-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent border-t-red-500 z-20"></div>
+               
+               {/* Rotating Compass Card */}
+               <div ref={compassCardRef} className="absolute inset-0 rounded-full flex items-center justify-center z-10 transition-transform duration-75">
+                  <div className="absolute inset-0 rounded-full border-4 border-slate-700"></div>
+                  <span className="absolute top-2 text-[10px] font-bold text-slate-300">N</span>
+                  <span className="absolute right-2 text-[10px] font-bold text-slate-300">E</span>
+                  <span className="absolute bottom-2 text-[10px] font-bold text-slate-300">S</span>
+                  <span className="absolute left-2 text-[10px] font-bold text-slate-300">W</span>
+                  <div className="absolute w-full h-px bg-slate-700"></div>
+                  <div className="absolute h-full w-px bg-slate-700"></div>
+                  {/* Tick marks */}
+                  {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg) => (
+                    <div key={deg} className="absolute w-full h-full flex items-start justify-center" style={{ transform: `rotate(${deg}deg)` }}>
+                      <div className="w-0.5 h-1.5 bg-slate-500 mt-1"></div>
+                    </div>
+                  ))}
+               </div>
+             </div>
+             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-6">GYROCOMPASS</span>
           </div>
           
           {/* Divider */}
