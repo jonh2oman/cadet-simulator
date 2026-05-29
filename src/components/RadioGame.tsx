@@ -31,7 +31,7 @@ const playStatic = (duration = 300, continuous = false): any => {
   if (ctx.state === 'suspended') ctx.resume();
   
   const noise = ctx.createBufferSource();
-  noise.buffer = window.staticBuffer;
+  noise.buffer = window.staticBuffer || null;
   noise.loop = continuous;
   
   const filter = ctx.createBiquadFilter();
