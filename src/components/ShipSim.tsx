@@ -578,9 +578,21 @@ export default function ShipSim() {
         ctx.fillRect(berthZone.x, berthZone.y, berthZone.w, berthZone.h);
         
         ctx.fillStyle = canTieUp ? 'rgba(52, 211, 153, 0.9)' : 'rgba(255, 255, 255, 0.5)';
-        ctx.font = 'bold 16px monospace';
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.setLineDash([]);
-        ctx.fillText(canTieUp ? 'READY TO TIE UP' : 'BERTH ZONE', berthZone.x + 10, berthZone.y + 25);
+        const centerX = berthZone.x + berthZone.w / 2;
+        const centerY = berthZone.y + berthZone.h / 2;
+        if (canTieUp) {
+          ctx.fillText('READY TO', centerX, centerY - 10);
+          ctx.fillText('TIE UP', centerX, centerY + 10);
+        } else {
+          ctx.fillText('BERTH', centerX, centerY - 10);
+          ctx.fillText('ZONE', centerX, centerY + 10);
+        }
+        ctx.textAlign = 'left'; // reset
+        ctx.textBaseline = 'alphabetic'; // reset
       }
 
       ctx.restore();
