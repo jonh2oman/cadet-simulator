@@ -10,8 +10,15 @@ const NATO_ALPHABET: Record<string, string> = {
 };
 
 const WORDS = [
+  // Directions & Ship Parts
   "PORT", "STARBOARD", "BOW", "STERN", "BRIDGE", "HELM", "KEEL", "DRAFT", "WAKE", 
-  "KNOT", "BEAM", "RADIO", "ANCHOR", "MAYDAY", "PANPAN", "RADAR", "SONAR", "BUOY"
+  "KNOT", "BEAM", "RADIO", "ANCHOR", "MAYDAY", "PANPAN", "RADAR", "SONAR", "BUOY",
+  "HALYARD", "MAST", "MASTHEAD", "TRUCK", "YARD", "GAFF", "BULKHEAD", "DECK", 
+  "OVERHEAD", "DECKHEAD", "GALLEY", "MESS", "WARDROOM", "COMPASS", "BINNACLE", 
+  "CAPSTAN", "CLEAT", "FENDER", "SCUPPER", "GANGWAY", "BROW", "QUARTERDECK", "FORECASTLE",
+  // Ranks & Roles
+  "SEAMAN", "SAILOR", "PETTY", "OFFICER", "CHIEF", "LIEUTENANT", "COMMANDER", 
+  "CAPTAIN", "ADMIRAL", "CADET", "COXSWAIN", "BOATSWAIN", "QUARTERMASTER"
 ];
 
 type GameMode = 'menu' | 'flashcard' | 'dictation' | 'spelling';
