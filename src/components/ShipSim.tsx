@@ -856,7 +856,6 @@ export default function ShipSim() {
       }
 
       ctx.restore();
-      ctx.restore();
       const { jettyType: currentJettyType, windSpeed: currentWindSpeed, windDir: currentWindDir } = controlsRef.current;
       
       ctx.save();
@@ -926,8 +925,6 @@ export default function ShipSim() {
         ctx.beginPath(); ctx.moveTo(sockLength * 0.3, -4); ctx.lineTo(sockLength * 0.4, -3); ctx.lineTo(sockLength * 0.4, 3); ctx.lineTo(sockLength * 0.3, 4); ctx.fill();
         ctx.beginPath(); ctx.moveTo(sockLength * 0.7, -3); ctx.lineTo(sockLength * 0.8, -2); ctx.lineTo(sockLength * 0.8, 2); ctx.lineTo(sockLength * 0.7, 3); ctx.fill();
       }
-      ctx.restore();
-
       ctx.restore();
 
       ctx.restore();
@@ -1208,9 +1205,9 @@ export default function ShipSim() {
         }
       }
 
-      ctx.restore(); // restore global zoom scale
-      
       ctx.restore(); // restore ship transform
+      
+      ctx.restore(); // restore global zoom scale
 
       // Update UI HUD
       if (speedTextRef.current) {
