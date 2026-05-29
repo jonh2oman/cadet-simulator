@@ -207,100 +207,145 @@ export default function RadioGame() {
           </select>
         </div>
         
-        <div className="flex flex-1 overflow-hidden">
-          {/* Hardware Panel */}
-          <div className="w-1/3 min-w-[320px] bg-slate-800 border-r border-slate-700/50 p-6 flex flex-col shadow-[inset_-10px_0_20px_rgba(0,0,0,0.5)]">
-            <div className="bg-slate-950 rounded-2xl p-6 border-4 border-slate-700 shadow-inner relative overflow-hidden flex-1 flex flex-col justify-start items-center">
-              <div className="absolute inset-0 bg-green-900/10 mix-blend-screen pointer-events-none"></div>
+        <div className="flex flex-col flex-1 overflow-hidden">
+          {/* Hardware Panel - Top Half */}
+          <div className="w-full bg-slate-800/80 border-b border-slate-700/50 p-8 flex justify-center items-end min-h-[380px] shadow-[inset_0_-10px_20px_rgba(0,0,0,0.5)]">
+            
+            <div className="relative mx-auto w-[650px] mt-12">
               
-              <div className="w-full flex justify-between items-start mb-6">
-                <div className="text-right">
-                  <div className="text-xs text-emerald-500/70 font-mono tracking-widest">INT / 1W</div>
-                  <div className={`text-sm font-mono mt-2 ${currentChannel === 'WX' ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}`}>
-                    {currentChannel === 'WX' ? 'RX ONLY' : 'TX READY'}
-                  </div>
+              {/* Handheld Mic (Resting on top) */}
+              <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-32 bg-gradient-to-b from-slate-800 to-slate-950 rounded-[2rem] border-2 border-slate-600 shadow-2xl z-20 flex flex-col items-center px-3 py-4">
+                {/* Speaker Grill */}
+                <div className="w-full h-10 bg-slate-950 rounded-xl mb-3 flex flex-col justify-center gap-1 p-2 shadow-inner">
+                  {[1,2,3].map(i => <div key={i} className="h-1 w-full bg-slate-800 rounded-full"></div>)}
                 </div>
+                {/* Keypad */}
+                <div className="grid grid-cols-3 gap-1.5 w-full">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                    <button key={num} onClick={() => { setInputBuffer(p => p.length < 5 ? p + num : p); playStatic(50); }} className="h-6 bg-slate-700 hover:bg-slate-600 rounded text-[10px] text-white font-bold shadow-sm active:translate-y-px">{num}</button>
+                  ))}
+                  <button onClick={() => { setInputBuffer(p => p.length < 5 && !p.includes('A') ? p + 'A' : p); playStatic(50); }} className="h-6 bg-purple-900/80 hover:bg-purple-800 rounded text-[10px] text-purple-200 font-bold shadow-sm active:translate-y-px">A</button>
+                  <button onClick={() => { setInputBuffer(p => p.length < 5 ? p + '0' : p); playStatic(50); }} className="h-6 bg-slate-700 hover:bg-slate-600 rounded text-[10px] text-white font-bold shadow-sm active:translate-y-px">0</button>
+                  <button onClick={() => { setCurrentChannel('WX'); setInputBuffer(''); playStatic(300); }} className="h-6 bg-blue-900/80 hover:bg-blue-800 rounded text-[10px] text-blue-200 font-bold shadow-sm active:translate-y-px">WX</button>
+                  <button onClick={() => { setInputBuffer(p => p.length < 5 && !p.includes('.') ? p + '.' : p); playStatic(50); }} className="h-6 bg-slate-700 hover:bg-slate-600 rounded text-[10px] text-white font-bold shadow-sm active:translate-y-px">.</button>
+                  <button onClick={() => { setInputBuffer(''); playStatic(150); }} className="h-6 bg-red-900/80 hover:bg-red-800 rounded text-[10px] text-red-200 font-bold shadow-sm active:translate-y-px">CLR</button>
+                  <button onClick={() => { if (inputBuffer) { setCurrentChannel(inputBuffer); setInputBuffer(''); playStatic(300); } }} className="h-6 bg-emerald-900/80 hover:bg-emerald-800 rounded text-[10px] text-emerald-200 font-bold shadow-sm active:translate-y-px">ENT</button>
+                </div>
+                {/* PTT Button */}
+                <div className="absolute -left-2 top-8 w-2 h-16 bg-red-600 rounded-l-md border border-red-800 shadow-[inset_-2px_0_4px_rgba(0,0,0,0.5)] cursor-pointer active:bg-red-500"></div>
+                {/* Mic Cable attach */}
+                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-6 h-6 bg-slate-900 rounded-full z-[-1]"></div>
               </div>
 
-              {/* Display */}
-              <div className="bg-slate-900/50 w-full rounded-lg border-2 border-slate-800 p-4 flex flex-col items-end mb-6 relative shadow-inner h-28 justify-center">
-                <div className="absolute top-2 left-3 text-xs text-emerald-500/50 font-mono">CH</div>
-                <div className="font-mono text-6xl text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.8)] font-bold tracking-tighter">
-                  {inputBuffer ? inputBuffer : (currentChannel.length === 1 ? '0' + currentChannel : currentChannel)}
+              {/* Coiled Cable */}
+              <svg className="absolute -left-12 top-10 w-24 h-48 z-10 pointer-events-none" viewBox="0 0 100 200">
+                <path d="M 50,0 Q 20,20 50,40 T 50,80 T 50,120 T 50,160 Q 80,180 90,200" fill="transparent" stroke="#1e293b" strokeWidth="8" strokeLinecap="round" />
+                <path d="M 50,0 Q 20,20 50,40 T 50,80 T 50,120 T 50,160 Q 80,180 90,200" fill="transparent" stroke="#0f172a" strokeWidth="4" strokeLinecap="round" />
+              </svg>
+
+              {/* Base Unit */}
+              <div className="relative w-full h-[220px] bg-gradient-to-b from-slate-800 to-slate-950 rounded-2xl border-2 border-slate-600 shadow-[0_30px_60px_rgba(0,0,0,0.8)] p-4 flex gap-4 z-10">
+                
+                {/* Left Speaker */}
+                <div className="w-[140px] h-full bg-slate-900 rounded-xl border-2 border-slate-800 p-4 flex flex-col justify-center gap-3 shadow-inner relative">
+                  <div className="text-white text-[12px] font-bold tracking-widest text-center absolute top-3 left-0 w-full">ICOM</div>
+                  <div className="text-[8px] text-slate-500 font-mono absolute top-8 left-0 w-full text-center">VHF MARINE IC-M506</div>
+                  <div className="mt-6 flex flex-col gap-2">
+                    {[1,2,3,4,5].map(i => <div key={i} className="h-3 w-full bg-black rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]"></div>)}
+                  </div>
+                  {/* Cable port */}
+                  <div className="absolute bottom-4 -left-2 w-4 h-8 bg-slate-950 rounded-r-md border-y border-r border-slate-700"></div>
                 </div>
-                {inputBuffer && (
-                  <div className="absolute bottom-2 left-3 text-xs text-amber-500 font-mono animate-pulse">INPUT...</div>
-                )}
-              </div>
-              
-              {/* Numpad */}
-              <div className="grid grid-cols-4 gap-2 w-full mt-auto">
-                {[1, 2, 3].map(num => (
-                  <button 
-                    key={num}
-                    onClick={() => { setInputBuffer(p => p.length < 5 ? p + num : p); playStatic(50); }}
-                    className="py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xl text-slate-300 font-bold transition-all border-b-4 border-slate-900 active:border-b-0 active:translate-y-1 shadow-md font-mono">
-                    {num}
-                  </button>
-                ))}
-                <button 
-                  onClick={() => { setInputBuffer(p => p.length < 5 && !p.includes('A') ? p + 'A' : p); playStatic(50); }}
-                  className="py-2 bg-purple-900/40 hover:bg-purple-800/60 text-purple-400 rounded-lg text-xl font-bold transition-all border-b-4 border-purple-950 active:border-b-0 active:translate-y-1 shadow-md font-mono">
-                  A
-                </button>
-                {[4, 5, 6].map(num => (
-                  <button 
-                    key={num}
-                    onClick={() => { setInputBuffer(p => p.length < 5 ? p + num : p); playStatic(50); }}
-                    className="py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xl text-slate-300 font-bold transition-all border-b-4 border-slate-900 active:border-b-0 active:translate-y-1 shadow-md font-mono">
-                    {num}
-                  </button>
-                ))}
-                <button 
-                  onClick={() => { setCurrentChannel('WX'); setInputBuffer(''); playStatic(300); }}
-                  className="py-2 bg-blue-900/40 hover:bg-blue-800/60 text-blue-400 rounded-lg text-lg font-bold transition-all border-b-4 border-blue-950 active:border-b-0 active:translate-y-1 shadow-md font-mono">
-                  WX
-                </button>
-                {[7, 8, 9].map(num => (
-                  <button 
-                    key={num}
-                    onClick={() => { setInputBuffer(p => p.length < 5 ? p + num : p); playStatic(50); }}
-                    className="py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xl text-slate-300 font-bold transition-all border-b-4 border-slate-900 active:border-b-0 active:translate-y-1 shadow-md font-mono">
-                    {num}
-                  </button>
-                ))}
-                <button 
-                  onClick={() => { setCurrentChannel('16'); setInputBuffer(''); playStatic(300); }}
-                  className="py-2 bg-orange-900/40 hover:bg-orange-800/60 text-orange-400 rounded-lg text-lg font-bold transition-all border-b-4 border-orange-950 active:border-b-0 active:translate-y-1 shadow-md font-mono">
-                  16/9
-                </button>
-                <button 
-                  onClick={() => { setInputBuffer(p => p.length < 5 && !p.includes('.') ? p + '.' : p); playStatic(50); }}
-                  className="py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xl text-slate-300 font-bold transition-all border-b-4 border-slate-900 active:border-b-0 active:translate-y-1 shadow-md font-mono">
-                  .
-                </button>
-                <button 
-                  onClick={() => { setInputBuffer(p => p.length < 5 ? p + '0' : p); playStatic(50); }}
-                  className="py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xl text-slate-300 font-bold transition-all border-b-4 border-slate-900 active:border-b-0 active:translate-y-1 shadow-md font-mono">
-                  0
-                </button>
-                <button 
-                  onClick={() => { setInputBuffer(''); playStatic(150); }}
-                  className="py-2 bg-red-900/40 hover:bg-red-800/60 text-red-400 rounded-lg text-lg font-bold transition-all border-b-4 border-red-950 active:border-b-0 active:translate-y-1 shadow-md font-mono">
-                  CLR
-                </button>
-                <button 
-                  onClick={() => { if (inputBuffer) { setCurrentChannel(inputBuffer); setInputBuffer(''); playStatic(300); } }}
-                  className="py-2 bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-400 rounded-lg text-lg font-bold transition-all border-b-4 border-emerald-950 active:border-b-0 active:translate-y-1 shadow-md font-mono">
-                  ENT
-                </button>
+
+                {/* Center Screen Area */}
+                <div className="flex-1 flex flex-col gap-2 relative">
+                  <div className="flex-1 bg-[#ffb000] rounded-lg border-[6px] border-slate-900 shadow-[inset_0_0_30px_rgba(217,119,6,0.9)] p-4 relative flex flex-col overflow-hidden">
+                    {/* Screen reflection */}
+                    <div className="absolute top-0 left-0 w-full h-1/2 bg-white/10 rounded-t-sm pointer-events-none"></div>
+                    
+                    {/* Screen Content */}
+                    <div className="w-full flex justify-between items-start">
+                      <div className="flex gap-2">
+                        <div className="text-[10px] text-black/80 font-mono font-bold bg-black/10 px-1 rounded">25W</div>
+                        <div className="text-[10px] text-black/80 font-mono font-bold bg-black/10 px-1 rounded">USA</div>
+                        {currentChannel === 'WX' && <div className="text-[10px] text-black/80 font-mono font-bold bg-black/10 px-1 rounded animate-pulse">WX</div>}
+                      </div>
+                      <div className="text-[10px] text-black/80 font-mono font-bold bg-black/10 px-1 rounded">
+                        {currentChannel === 'WX' ? 'RX' : 'TX'}
+                      </div>
+                    </div>
+
+                    <div className="flex-1 flex items-center justify-between mt-2">
+                      <div className="flex flex-col text-black/80 font-mono text-[10px] leading-tight">
+                        <div>LAT: 45° 30'N</div>
+                        <div>LON: 60° 15'W</div>
+                        <div className="mt-1 font-bold">{new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit'})} UTC</div>
+                      </div>
+                      <div className="flex items-start">
+                        <div className="text-black/60 font-mono text-sm mt-2 mr-1">CH</div>
+                        <div className="font-mono text-7xl text-black/90 font-bold tracking-tighter" style={{ fontFamily: '"Courier New", Courier, monospace' }}>
+                          {inputBuffer ? inputBuffer : (currentChannel.length === 1 ? '0' + currentChannel : currentChannel)}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {inputBuffer && (
+                      <div className="absolute bottom-2 left-4 text-[10px] text-black/80 font-mono font-bold animate-pulse bg-black/10 px-2 py-0.5 rounded">INPUT...</div>
+                    )}
+                  </div>
+                  
+                  {/* 4 Soft Keys */}
+                  <div className="flex justify-between px-4 h-6">
+                    {['SCAN', 'DW', 'CH/WX', 'NAV'].map((lbl, i) => (
+                      <div key={i} className="flex flex-col items-center">
+                        <button className="w-14 h-5 bg-slate-700 hover:bg-slate-600 rounded-b-lg border-b-2 border-slate-900 shadow-md active:translate-y-1 active:border-b-0 transition-all"></button>
+                        <span className="text-[8px] text-white mt-1 font-bold">{lbl}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right Controls */}
+                <div className="w-[120px] h-full flex flex-col items-center justify-between py-2 relative">
+                   {/* DISTRESS Flap */}
+                   <div className="absolute top-0 right-0 w-12 h-8 bg-red-600 rounded-bl-xl border-b-2 border-l-2 border-red-800 shadow-md flex items-center justify-center cursor-pointer hover:bg-red-500 transition-colors">
+                     <span className="text-[6px] text-white font-bold">DISTRESS</span>
+                   </div>
+
+                   {/* D-PAD & Enter */}
+                   <div className="mt-8 relative w-20 h-20">
+                     <button className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-6 bg-slate-700 rounded-t-lg border-t border-slate-500 shadow-sm flex items-center justify-center active:bg-slate-600"><span className="text-white text-[8px]">▲</span></button>
+                     <button className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-6 bg-slate-700 rounded-b-lg border-b border-slate-900 shadow-sm flex items-center justify-center active:bg-slate-600"><span className="text-white text-[8px]">▼</span></button>
+                     <button className="absolute top-1/2 left-0 -translate-y-1/2 w-6 h-8 bg-slate-700 rounded-l-lg border-l border-slate-500 shadow-sm flex items-center justify-center active:bg-slate-600"><span className="text-white text-[8px]">◀</span></button>
+                     <button className="absolute top-1/2 right-0 -translate-y-1/2 w-6 h-8 bg-slate-700 rounded-r-lg border-r border-slate-900 shadow-sm flex items-center justify-center active:bg-slate-600"><span className="text-white text-[8px]">▶</span></button>
+                     <button className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-slate-800 rounded-full border-2 border-slate-600 shadow-inner flex items-center justify-center active:bg-slate-700"><span className="text-white text-[8px] font-bold">ENT</span></button>
+                   </div>
+                   
+                   {/* 16/9 Button & Knobs */}
+                   <div className="flex w-full justify-between items-end mt-4 px-2">
+                     <button 
+                        onClick={() => { setCurrentChannel('16'); setInputBuffer(''); playStatic(300); }}
+                        className="w-10 h-10 bg-blue-600 hover:bg-blue-500 rounded-full shadow-[0_0_10px_rgba(37,99,235,0.8)] border-2 border-blue-400 flex items-center justify-center font-bold text-white text-xs active:scale-95 transition-all"
+                     >
+                       16
+                     </button>
+                     
+                     <div className="flex flex-col items-center">
+                       <div className="w-12 h-12 bg-slate-900 rounded-full border border-slate-700 shadow-[inset_0_2px_5px_rgba(255,255,255,0.1),0_5px_10px_rgba(0,0,0,0.8)] relative">
+                         <div className="absolute top-1 left-1/2 -translate-x-1/2 w-1 h-3 bg-white rounded-full"></div>
+                         <div className="absolute inset-2 bg-slate-800 rounded-full shadow-inner"></div>
+                       </div>
+                       <span className="text-[8px] text-slate-400 mt-1 font-bold">VOL/SQ</span>
+                     </div>
+                   </div>
+                </div>
               </div>
             </div>
           </div>
           
-          {/* Comms Log Panel */}
-          <div className="flex-1 p-8 flex flex-col bg-slate-900/80 overflow-hidden relative">
-            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6">Live Communications Transcript</h3>
+          {/* Comms Log Panel - Bottom Half */}
+          <div className="flex-1 p-8 flex flex-col bg-slate-900/90 overflow-hidden relative border-t-4 border-slate-950">
+            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Live Communications Transcript</h3>
             <div className="flex-1 overflow-y-auto pr-4 space-y-4 font-mono text-base">
               
               {commsLog.map((msg, idx) => (
