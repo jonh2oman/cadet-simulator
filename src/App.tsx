@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Anchor, Navigation, Radio } from 'lucide-react';
 import ShipSim from './components/ShipSim';
 import RadioGame from './components/RadioGame';

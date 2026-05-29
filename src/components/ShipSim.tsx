@@ -35,7 +35,7 @@ export default function ShipSim() {
   const [envExpanded, setEnvExpanded] = useState(true);
   const [damageEnabled, setDamageEnabled] = useState(false);
   const [portMode, setPortMode] = useState<'home'|'random'>('home');
-  const [islands, setIslands] = useState<Array<{points: number[][]}>>([]);
+  const [, setIslands] = useState<Array<{points: number[][]}>>([]);
   const islandsRef = useRef<Array<{points: number[][]}>>([]);
   const [shipDamage, setShipDamage] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);

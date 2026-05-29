@@ -1,7 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Radio } from 'lucide-react';
 import { scenarios } from '../scenarios';
 import type { RadioMessage } from '../scenarios';
+
+declare global {
+  interface Window {
+    audioCtx?: AudioContext;
+    staticBuffer?: AudioBuffer;
+  }
+}
 
 // Initialize Web Audio API for static noise
 const getAudioCtx = () => {
