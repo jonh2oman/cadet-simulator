@@ -146,8 +146,8 @@ export default function ShipSim() {
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'BUTTON') return;
-    // Don't drag if we are turning the wheel
-    if ((e.target as HTMLElement).closest('.steering-wheel-container')) return;
+    // Don't drag if we are turning the wheel or pushing the throttle
+    if ((e.target as HTMLElement).closest('.steering-wheel-container') || (e.target as HTMLElement).closest('.lever-container')) return;
     setIsDragging(true);
     dragStart.current = { x: e.clientX, y: e.clientY, panelX: panelPos.x, panelY: panelPos.y };
   };
@@ -174,6 +174,9 @@ export default function ShipSim() {
     // Clamp to -45 to 45
     if (angle > 45) angle = 45;
     if (angle < -45) angle = -45;
+    
+    // Snap to 0
+    if (Math.abs(angle) < 6) angle = 0;
     
     setRudder(Math.round(angle));
   };
@@ -1184,7 +1187,7 @@ export default function ShipSim() {
               onPointerDown={handleLeverPointerDown}
               onPointerMove={handleLeverPointerMove}
               onPointerUp={handleLeverPointerUp}
-              className="relative w-24 h-56 bg-gradient-to-r from-slate-400 via-slate-100 to-slate-400 rounded-xl shadow-[0_10px_20px_rgba(0,0,0,0.8),inset_0_-5px_10px_rgba(0,0,0,0.5),inset_0_5px_10px_rgba(255,255,255,0.8)] border border-slate-300 flex items-center justify-center cursor-pointer select-none touch-none overflow-hidden"
+              className="lever-container relative w-24 h-56 bg-gradient-to-r from-slate-400 via-slate-100 to-slate-400 rounded-xl shadow-[0_10px_20px_rgba(0,0,0,0.8),inset_0_-5px_10px_rgba(0,0,0,0.5),inset_0_5px_10px_rgba(255,255,255,0.8)] border border-slate-300 flex items-center justify-center cursor-pointer select-none touch-none overflow-hidden"
             >
               {/* Inner Slot */}
               <div className="absolute w-6 h-48 bg-slate-950 rounded-full shadow-[inset_0_5px_15px_rgba(0,0,0,1)] flex justify-center">
