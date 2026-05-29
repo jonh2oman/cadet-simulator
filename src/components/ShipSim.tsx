@@ -40,6 +40,8 @@ export default function ShipSim() {
   const [shipDamage, setShipDamage] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
   const [isDocked, setIsDocked] = useState(true);
+  const [canTieUp, setCanTieUp] = useState(false);
+  const tieUpDataRef = useRef({ snapX: 460, snapY: 150, snapH: 0 });
   
   // Buoy controls
   const [showPortBuoy, setShowPortBuoy] = useState(true);
@@ -283,9 +285,9 @@ export default function ShipSim() {
 
       if (controlsRef.current.isDocked) {
         state.speed = 0;
-        state.x = 460;
-        state.y = 150;
-        state.heading = 0;
+        state.x = tieUpDataRef.current.snapX;
+        state.y = tieUpDataRef.current.snapY;
+        state.heading = tieUpDataRef.current.snapH;
       }
 
       // Calculate environmental drift
@@ -309,15 +311,29 @@ export default function ShipSim() {
       let collision = false;
       const shipRadius = 18 * visualScale;
       
-      // Jetty hitboxes
+      // Jetty & Bridge hitboxes
       let jettyRects: {x:number, y:number, w:number, h:number}[] = [];
       const dockWorldX = 500;
       const dockWorldY = 50;
+      let berthZone = { x: -80, y: 20, w: 70, h: 160, snapX: 460, snapY: 150, snapH: 0 }; // default
+      
       switch (controlsRef.current.jettyType) {
-        case 'straight': jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }]; break;
-        case 'l-shape': jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: 40, y: 0, w: 100, h: 40 }]; break;
-        case 'u-shape': jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: 40, y: 0, w: 100, h: 40 }, { x: 40, y: 160, w: 100, h: 40 }]; break;
-        case 't-shape': jettyRects = [{ x: 0, y: 50, w: 40, h: 100 }, { x: -60, y: 0, w: 160, h: 40 }]; break;
+        case 'straight': 
+          jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: 40, y: 0, w: 210, h: 40 }]; 
+          berthZone = { x: -80, y: 20, w: 70, h: 160, snapX: 460, snapY: 150, snapH: 0 };
+          break;
+        case 'l-shape': 
+          jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: 40, y: 0, w: 100, h: 40 }, { x: 140, y: 0, w: 110, h: 40 }]; 
+          berthZone = { x: 40, y: 40, w: 100, h: 120, snapX: 590, snapY: 150, snapH: 0 };
+          break;
+        case 'u-shape': 
+          jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: 40, y: 0, w: 100, h: 40 }, { x: 40, y: 160, w: 100, h: 40 }, { x: 140, y: 0, w: 110, h: 40 }, { x: 140, y: 160, w: 110, h: 40 }]; 
+          berthZone = { x: 40, y: 40, w: 100, h: 120, snapX: 590, snapY: 150, snapH: 0 };
+          break;
+        case 't-shape': 
+          jettyRects = [{ x: 0, y: 50, w: 40, h: 100 }, { x: -60, y: 0, w: 160, h: 40 }, { x: 40, y: 100, w: 210, h: 40 }]; 
+          berthZone = { x: -60, y: 40, w: 60, h: 110, snapX: 410, snapY: 140, snapH: 0 };
+          break;
       }
       
       for (const rect of jettyRects) {
@@ -327,19 +343,43 @@ export default function ShipSim() {
         if (dist <= shipRadius) { collision = true; break; }
       }
 
-      // Island hitboxes
+      // Island & Mainland hitboxes
       if (!collision) {
-        for (const island of islandsRef.current) {
-          // Approximate island with bounding box for simplicity
-          let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
-          island.points.forEach(p => {
-            if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0];
-            if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1];
-          });
-          const testX = Math.max(minX, Math.min(newX, maxX));
-          const testY = Math.max(minY, Math.min(newY, maxY));
-          if (Math.hypot(newX - testX, newY - testY) <= shipRadius) { collision = true; break; }
+        if (newX > dockWorldX + 250 - shipRadius) {
+          collision = true;
+        } else {
+          for (const island of islandsRef.current) {
+            // Approximate island with bounding box for simplicity
+            let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
+            island.points.forEach(p => {
+              if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0];
+              if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1];
+            });
+            const testX = Math.max(minX, Math.min(newX, maxX));
+            const testY = Math.max(minY, Math.min(newY, maxY));
+            if (Math.hypot(newX - testX, newY - testY) <= shipRadius) { collision = true; break; }
+          }
         }
+      }
+
+      // Check Berthing Zone (Only if not docked)
+      if (!controlsRef.current.isDocked) {
+        const inZoneX = state.x >= dockWorldX + berthZone.x && state.x <= dockWorldX + berthZone.x + berthZone.w;
+        const inZoneY = state.y >= dockWorldY + berthZone.y && state.y <= dockWorldY + berthZone.y + berthZone.h;
+        const speedOk = Math.abs(state.speed) < 0.5;
+        const isTieUpAvailable = inZoneX && inZoneY && speedOk;
+        
+        if (isTieUpAvailable) {
+           tieUpDataRef.current = { snapX: dockWorldX + berthZone.snapX - 500 + 460, snapY: dockWorldY + berthZone.snapY - 50 + 150, snapH: berthZone.snapH };
+        }
+        
+        // Pass to React State (limit frequency)
+        setCanTieUp(prev => {
+          if (prev !== isTieUpAvailable) return isTieUpAvailable;
+          return prev;
+        });
+      } else {
+        setCanTieUp(false);
       }
 
       if (collision) {
@@ -492,12 +532,56 @@ export default function ShipSim() {
       // Draw Mainland continent attached to the right side of the dock
       ctx.save();
       ctx.translate(dockX, dockY);
-      ctx.fillStyle = '#1e3a8a'; // deep blue shallow edge
-      ctx.fillRect(40, -4000, 15, 8000);
-      ctx.fillStyle = '#b45309'; // beach/edge
-      ctx.fillRect(45, -4000, 5, 8000);
+      
+      // Connective Bridge to Mainland
+      ctx.fillStyle = '#6b4629'; // darker wood bridge
+      switch (controlsRef.current.jettyType) {
+        case 'straight': ctx.fillRect(40, 0, 210, 40); break;
+        case 'l-shape': ctx.fillRect(140, 0, 110, 40); break;
+        case 'u-shape': ctx.fillRect(140, 0, 110, 40); ctx.fillRect(140, 160, 110, 40); break;
+        case 't-shape': ctx.fillRect(40, 100, 210, 40); break;
+      }
+
+      // Organic curved coastline
+      ctx.beginPath();
+      ctx.moveTo(250, -4000);
+      for(let y = -4000; y <= 4000; y += 100) {
+        // Procedural sine waves for irregular coast
+        const xOffset = Math.sin(y * 0.01) * 40 + Math.sin(y * 0.05) * 15;
+        ctx.lineTo(250 + xOffset, y);
+      }
+      ctx.lineTo(4250, 4000);
+      ctx.lineTo(4250, -4000);
+      ctx.closePath();
+      
+      ctx.lineWidth = 15;
+      ctx.strokeStyle = '#1e3a8a'; // deep blue shallow edge
+      ctx.stroke();
+      
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = '#b45309'; // beach edge
+      ctx.stroke();
+      
       ctx.fillStyle = '#166534'; // green land
-      ctx.fillRect(50, -4000, 4000, 8000);
+      ctx.fill();
+
+      // Draw Berthing Zone Outline
+      if (!controlsRef.current.isDocked) {
+        ctx.strokeStyle = canTieUp ? 'rgba(52, 211, 153, 0.9)' : 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([10, 10]);
+        ctx.strokeRect(berthZone.x, berthZone.y, berthZone.w, berthZone.h);
+        
+        ctx.fillStyle = canTieUp ? 'rgba(52, 211, 153, 0.15)' : 'rgba(255, 255, 255, 0.05)';
+        ctx.fillRect(berthZone.x, berthZone.y, berthZone.w, berthZone.h);
+        
+        ctx.fillStyle = canTieUp ? 'rgba(52, 211, 153, 0.9)' : 'rgba(255, 255, 255, 0.5)';
+        ctx.font = 'bold 16px monospace';
+        ctx.setLineDash([]);
+        ctx.fillText(canTieUp ? 'READY TO TIE UP' : 'BERTH ZONE', berthZone.x + 10, berthZone.y + 25);
+      }
+
+      ctx.restore();
       ctx.restore();
       const { jettyType: currentJettyType, windSpeed: currentWindSpeed, windDir: currentWindDir } = controlsRef.current;
       
@@ -1145,17 +1229,33 @@ export default function ShipSim() {
         </div>
       </div>
 
-      {/* Slip the Jetty Button */}
-      {isDocked && !showWelcome && (
-        <div className="absolute top-1/2 left-1/2 ml-[150px] -mt-[50px] z-50">
-          <button 
-            onClick={() => setIsDocked(false)}
-            className="bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 px-6 rounded-full shadow-[0_0_15px_rgba(217,119,6,0.6)] border-2 border-amber-400 hover:scale-105 transition-transform uppercase tracking-widest text-sm animate-pulse hover:animate-none"
-          >
-            Slip the Jetty
-          </button>
-        </div>
+      {/* Docking Button Overlays */}
+      {isDocked && (
+        <button 
+          onClick={() => {
+            setIsDocked(false);
+            setThrottle(0);
+          }}
+          className="absolute z-10 bottom-12 left-1/2 -translate-x-1/2 px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-full shadow-[0_0_30px_rgba(234,88,12,0.8)] border-4 border-orange-400 tracking-widest text-lg transition-transform hover:scale-105"
+        >
+          SLIP THE JETTY
+        </button>
       )}
+
+      {!isDocked && canTieUp && (
+        <button 
+          onClick={() => {
+            setIsDocked(true);
+            setThrottle(0);
+            setRudder(0);
+          }}
+          className="absolute z-10 bottom-12 left-1/2 -translate-x-1/2 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-full shadow-[0_0_30px_rgba(16,185,129,0.8)] border-4 border-emerald-400 tracking-widest text-lg transition-transform hover:scale-105 animate-bounce"
+        >
+          TIE UP SECURELY
+        </button>
+      )}
+
+      {/* Physics Panels & Environment Overlays */}
 
       {/* Welcome Screen Overlay */}
       {showWelcome && (
