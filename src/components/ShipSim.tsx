@@ -39,7 +39,7 @@ export default function ShipSim() {
   const islandsRef = useRef<Array<{points: number[][]}>>([]);
   const [shipDamage, setShipDamage] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
-  const [isDocked, setIsDocked] = useState(true);
+  const [isDocked, setIsDocked] = useState(false);
   const [canTieUp, setCanTieUp] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const isPausedRef = useRef(false);
@@ -560,6 +560,9 @@ export default function ShipSim() {
       ctx.fillStyle = '#0f172a'; // slate-900 water color
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      const camX = controlsRef.current.simMode === 'heli' ? heliState.current.x : state.x;
+      const camY = controlsRef.current.simMode === 'heli' ? heliState.current.y + 150 : state.y;
+
       // Draw stylized dynamic water waves instead of grid
       ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)'; // faint sky-blue waves
       ctx.lineWidth = 1.5;
@@ -833,7 +836,9 @@ export default function ShipSim() {
 
       // Draw the ship
       ctx.save();
-      ctx.translate(canvas.width / 2, canvas.height / 2);
+      const shipScreenX = state.x - camX + canvas.width / 2;
+      const shipScreenY = state.y - camY + canvas.height / 2;
+      ctx.translate(shipScreenX, shipScreenY);
       ctx.rotate(state.heading);
       ctx.scale(visualScale, visualScale);
       
