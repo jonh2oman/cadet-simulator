@@ -793,6 +793,47 @@ export default function ShipSim() {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('H', 0, sternY - 12);
+        
+        if (shipClass === 'frigate') {
+          const heliY = sternY - 12;
+          
+          // Tail boom
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(-0.5, heliY + 2, 1, 6);
+          
+          // Helicopter body
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(-2, heliY - 4, 4, 7, 1.5);
+          else ctx.fillRect(-2, heliY - 4, 4, 7);
+          ctx.fill();
+          
+          // Cockpit glass
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(0, heliY - 2.5, 1.5, Math.PI, 0);
+          ctx.fill();
+
+          // Spinning Main rotor
+          ctx.save();
+          ctx.translate(0, heliY - 0.5);
+          ctx.rotate((Date.now() % 1000) / 1000 * Math.PI * 2 * 10);
+          ctx.fillStyle = 'rgba(200, 200, 200, 0.5)';
+          ctx.fillRect(-6, -0.5, 12, 1);
+          ctx.fillRect(-0.5, -6, 1, 12);
+          ctx.beginPath();
+          ctx.arc(0, 0, 6, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+          ctx.fill();
+          ctx.restore();
+
+          // Spinning Tail rotor
+          ctx.save();
+          ctx.translate(0.5, heliY + 7.5);
+          ctx.rotate((Date.now() % 1000) / 1000 * Math.PI * 2 * 15);
+          ctx.fillStyle = 'rgba(200, 200, 200, 0.8)';
+          ctx.fillRect(-1.5, -0.25, 3, 0.5);
+          ctx.restore();
+        }
 
         // Bridge / Superstructure
         ctx.fillStyle = '#cbd5e1';
