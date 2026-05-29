@@ -79,19 +79,22 @@ export default function ShipSim() {
 
     if (portMode === 'home') {
       const homeIslands = [
-        generateIsland(800, 300, 100),
-        generateIsland(200, -100, 80)
+        generateIsland(100, 500, 100),
+        generateIsland(200, -200, 80)
       ];
       setIslands(homeIslands);
       islandsRef.current = homeIslands;
     } else {
       const newIslands = [];
       for(let i=0; i<4; i++) {
-        // Keep them slightly away from the jetty (500, 50)
-        let cx = (Math.random() - 0.5) * 1200 + 500;
-        let cy = (Math.random() - 0.5) * 800;
-        if (Math.abs(cx - 500) < 150 && Math.abs(cy - 50) < 150) {
-          cx += 200; cy += 200;
+        // Keep them strictly to the left of the mainland (mainland starts at world x=750)
+        // Spawn them in the navigable water (world x from -600 to 400)
+        let cx = (Math.random() * 1000) - 600; 
+        let cy = (Math.random() - 0.5) * 1200;
+        
+        // Keep them away from the jetty area (around 500, 50)
+        if (Math.abs(cx - 500) < 300 && Math.abs(cy - 50) < 300) {
+          cx -= 400; 
         }
         newIslands.push(generateIsland(cx, cy, 50 + Math.random() * 60));
       }
