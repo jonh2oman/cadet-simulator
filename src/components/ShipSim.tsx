@@ -20,8 +20,10 @@ export default function ShipSim() {
   ]);
 
   // Engine & System controls
-  const [throttle, setThrottle] = useState(0);
-  const [rudder, setRudder] = useState(0);
+  const [throttle, setThrottle] = useState(0); // -100 to 100
+  const [rudder, setRudder] = useState(0); // -45 to 45
+  const [bowThruster, setBowThruster] = useState(0); // -100 to 100
+  const [sternThruster, setSternThruster] = useState(0); // -100 to 100
   const [navLightsOn, setNavLightsOn] = useState(true);
   const [whiteLightsOn, setWhiteLightsOn] = useState(true);
 
@@ -55,11 +57,12 @@ export default function ShipSim() {
   const [showPortBuoy, setShowPortBuoy] = useState(true);
   const [showStbdBuoy, setShowStbdBuoy] = useState(true);
 
-  const controlsRef = useRef({ 
-    throttle: 0, rudder: 0, navLightsOn: true, whiteLightsOn: true,
-    windSpeed: 0, windDir: 0, currentSpeed: 0, currentDir: 0, jettyType: 'straight',
+  const controlsRef = useRef({
+    throttle: 0, rudder: 0, bowThruster: 0, sternThruster: 0,
+    navLightsOn: true, whiteLightsOn: false,
+    windSpeed: 0, windDir: 0, currentSpeed: 0, currentDir: 90, jettyType: 'straight',
     showPortBuoy: true, showStbdBuoy: true, shipClass: 'patrol', damageEnabled: false, portMode: 'home',
-    isDocked: true, simMode: 'ship'
+    isDocked: false, simMode: 'ship'
   });
   
   // Heli Physics State
@@ -76,13 +79,13 @@ export default function ShipSim() {
 
   useEffect(() => {
     controlsRef.current = {
-      throttle, rudder, navLightsOn, whiteLightsOn,
+      throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn,
       windSpeed, windDir, currentSpeed, currentDir, jettyType,
       showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode
     };
     heliControlsRef.current.collective = heliCollective;
     heliControlsRef.current.pedals = heliPedals;
-  }, [throttle, rudder, navLightsOn, whiteLightsOn, windSpeed, windDir, currentSpeed, currentDir, jettyType, showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode, heliCollective, heliPedals]);
+  }, [throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, windSpeed, windDir, currentSpeed, currentDir, jettyType, showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode, heliCollective, heliPedals]);
 
   useEffect(() => {
     const generateIsland = (cx: number, cy: number, radius: number) => {
@@ -352,7 +355,7 @@ export default function ShipSim() {
 
       // Update physics
       const state = shipState.current;
-      const { throttle, rudder, navLightsOn, whiteLightsOn, windSpeed, windDir, currentSpeed, currentDir, shipClass } = controlsRef.current;
+      const { throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, windSpeed, windDir, currentSpeed, currentDir, shipClass } = controlsRef.current;
       
       // Class physics modifiers
       let inertia = 1; // 1 = small, <1 = larger (slower response)
@@ -384,6 +387,25 @@ export default function ShipSim() {
         const turnRate = (rudder / 45) * Math.min(Math.abs(state.speed), 5) * 0.5 * turnInertia;
         state.heading += (state.speed > 0 ? turnRate : -turnRate) * dt;
       }
+      
+      // Side thrusters for larger ships
+      let lateralDx = 0;
+      let lateralDy = 0;
+      if (shipClass === 'corvette' || shipClass === 'frigate') {
+        const bowT = bowThruster / 100;
+        const sternT = sternThruster / 100;
+        
+        // Thrusters can only operate efficiently at low speeds
+        const thrusterEfficiency = Math.max(0, 1 - Math.abs(state.speed) / 5);
+        
+        const thrusterTurnRate = (bowT - sternT) * 0.2 * turnInertia * thrusterEfficiency;
+        state.heading += thrusterTurnRate * dt;
+        
+        const lateralDrift = (bowT + sternT) * 2.0 * thrusterEfficiency; // 2 units of lateral drift max
+        const perpRad = state.heading + Math.PI / 2;
+        lateralDx = Math.sin(perpRad) * lateralDrift;
+        lateralDy = -Math.cos(perpRad) * lateralDrift;
+      }
 
       if (controlsRef.current.isDocked) {
         state.speed = 0;
@@ -405,9 +427,9 @@ export default function ShipSim() {
       const currentDx = Math.sin(currentRad) * currentForce;
       const currentDy = -Math.cos(currentRad) * currentForce;
 
-      // Move ship (Engine thrust + Wind drift + Current drift)
-      const newX = state.x + (Math.sin(state.heading) * state.speed * 10 + windDx * 10 + currentDx * 10) * dt;
-      const newY = state.y - (Math.cos(state.heading) * state.speed * 10 - windDy * 10 - currentDy * 10) * dt;
+      // Move ship (Engine thrust + Wind drift + Current drift + Lateral thrusters)
+      const newX = state.x + (Math.sin(state.heading) * state.speed * 10 + windDx * 10 + currentDx * 10 + lateralDx * 10) * dt;
+      const newY = state.y - (Math.cos(state.heading) * state.speed * 10 - windDy * 10 - currentDy * 10 - lateralDy * 10) * dt;
 
       // Collision Detection
       let collision = false;
@@ -1029,6 +1051,37 @@ export default function ShipSim() {
         ctx.beginPath(); ctx.arc(0, 4, 3, 0, Math.PI * 2); ctx.fill();
       }
       
+      // Side Thruster Visuals
+      if (controlsRef.current.bowThruster !== 0 || controlsRef.current.sternThruster !== 0) {
+        if (shipClass === 'corvette' || shipClass === 'frigate') {
+           const lengthMultiplier = shipClass === 'frigate' ? 2.0 : 1.5;
+           const bowY = -28 * lengthMultiplier;
+           const sternY = 26 * lengthMultiplier;
+           
+           ctx.fillStyle = 'rgba(248, 250, 252, 0.8)'; // Foamy white water
+           ctx.shadowBlur = 4;
+           ctx.shadowColor = 'rgba(255,255,255,0.5)';
+           
+           if (controlsRef.current.bowThruster !== 0) {
+              // Positive = thrust STBD (push ship right), so water shoots PORT (left)
+              const bowT = controlsRef.current.bowThruster;
+              const intensity = Math.abs(bowT) / 100;
+              const dir = bowT > 0 ? -1 : 1; 
+              ctx.beginPath(); 
+              ctx.arc(dir * 12, bowY + 20, 2 + intensity * 4, 0, Math.PI * 2); 
+              ctx.fill();
+           }
+           if (controlsRef.current.sternThruster !== 0) {
+              const sternT = controlsRef.current.sternThruster;
+              const intensity = Math.abs(sternT) / 100;
+              const dir = sternT > 0 ? -1 : 1; 
+              ctx.beginPath(); 
+              ctx.arc(dir * 12, sternY - 20, 2 + intensity * 4, 0, Math.PI * 2); 
+              ctx.fill();
+           }
+        }
+      }
+
       ctx.restore();
       // Update UI HUD
       if (speedTextRef.current) {
@@ -1304,6 +1357,38 @@ export default function ShipSim() {
         {/* Controls Section */}
         <div className="flex gap-12 items-end px-4">
           
+          {/* Side Thrusters (Corvette/Frigate only) */}
+          {(shipClass === 'corvette' || shipClass === 'frigate') && (
+            <div className="flex gap-6 border-r border-slate-700 pr-8 mr-[-16px]">
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">BOW</span>
+                <input 
+                  type="range" 
+                  min="-100" 
+                  max="100" 
+                  value={bowThruster}
+                  onChange={(e) => setBowThruster(parseInt(e.target.value))}
+                  onDoubleClick={() => setBowThruster(0)}
+                  className="w-24 accent-amber-500 cursor-pointer"
+                />
+                <span className="text-xs text-slate-500 font-mono">{bowThruster > 0 ? `STBD ${bowThruster}` : bowThruster < 0 ? `PORT ${Math.abs(bowThruster)}` : '00'}</span>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">STERN</span>
+                <input 
+                  type="range" 
+                  min="-100" 
+                  max="100" 
+                  value={sternThruster}
+                  onChange={(e) => setSternThruster(parseInt(e.target.value))}
+                  onDoubleClick={() => setSternThruster(0)}
+                  className="w-24 accent-amber-500 cursor-pointer"
+                />
+                <span className="text-xs text-slate-500 font-mono">{sternThruster > 0 ? `STBD ${sternThruster}` : sternThruster < 0 ? `PORT ${Math.abs(sternThruster)}` : '00'}</span>
+              </div>
+            </div>
+          )}
+
           {/* Lighting Toggles */}
           <div className="flex flex-col gap-6 justify-end border-r border-slate-700 pr-8 mr-[-16px]">
             <div className="text-center">
