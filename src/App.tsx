@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Anchor, Navigation, Radio, BookOpen, Flag } from 'lucide-react';
+import { Anchor } from 'lucide-react';
 import ShipSim from './components/ShipSim';
 import RadioGame from './components/RadioGame';
 import AlphabetGame from './components/AlphabetGame';
