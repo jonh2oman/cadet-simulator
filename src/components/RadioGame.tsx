@@ -61,7 +61,89 @@ export default function RadioGame() {
   const [currentChannel, setCurrentChannel] = useState<string>('16');
   const [inputBuffer, setInputBuffer] = useState<string>('');
   
+  // Handheld Drag & Jelly Wire State
+  const [micPos, setMicPos] = useState({ x: 0, y: 0 });
+  const micPosRef = useRef({ x: 0, y: 0 });
+  const isDraggingMic = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0, startMicX: 0, startMicY: 0 });
+  const springPoint = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
+  const wireRef = useRef<SVGPathElement>(null);
+  const wireInnerRef = useRef<SVGPathElement>(null);
+
   const weatherNoiseRef = useRef<any>(null);
+
+  // Sync micPos to ref for the animation loop
+  useEffect(() => {
+    micPosRef.current = micPos;
+  }, [micPos]);
+
+  // Handle Dragging
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingMic.current) return;
+      setMicPos({
+        x: dragStart.current.startMicX + (e.clientX - dragStart.current.x),
+        y: dragStart.current.startMicY + (e.clientY - dragStart.current.y)
+      });
+    };
+    const handleMouseUp = () => {
+      if (isDraggingMic.current) {
+        isDraggingMic.current = false;
+      }
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  // Jelly Wire Physics Loop
+  useEffect(() => {
+    let animationFrameId: number;
+    
+    // Initialize spring point at rest
+    springPoint.current.x = 160;
+    springPoint.current.y = 120;
+
+    const updateSpring = () => {
+      const baseX = -10;
+      const baseY = 200;
+      
+      const micX = 325 + micPosRef.current.x;
+      const micY = 60 + micPosRef.current.y;
+
+      const targetX = (baseX + micX) / 2;
+      const dist = Math.hypot(micX - baseX, micY - baseY);
+      const targetY = ((baseY + micY) / 2) + Math.max(150, dist * 0.7); // Droop
+
+      const k = 0.03; // Tension (low for jelly effect)
+      const damp = 0.85; // Friction
+
+      const ax = (targetX - springPoint.current.x) * k;
+      const ay = (targetY - springPoint.current.y) * k;
+
+      springPoint.current.vx += ax;
+      springPoint.current.vy += ay;
+      springPoint.current.vx *= damp;
+      springPoint.current.vy *= damp;
+
+      springPoint.current.x += springPoint.current.vx;
+      springPoint.current.y += springPoint.current.vy;
+
+      if (wireRef.current && wireInnerRef.current) {
+         const path = `M ${baseX} ${baseY} Q ${springPoint.current.x} ${springPoint.current.y} ${micX} ${micY}`;
+         wireRef.current.setAttribute('d', path);
+         wireInnerRef.current.setAttribute('d', path);
+      }
+
+      animationFrameId = requestAnimationFrame(updateSpring);
+    };
+    
+    updateSpring();
+    return () => cancelAnimationFrame(animationFrameId);
+  }, []);
 
   useEffect(() => {
     // Initialize scenario
@@ -209,39 +291,49 @@ export default function RadioGame() {
         
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Hardware Panel - Top Half */}
-          <div className="w-full bg-slate-800/80 border-b border-slate-700/50 p-8 flex justify-center items-end min-h-[380px] shadow-[inset_0_-10px_20px_rgba(0,0,0,0.5)]">
+          <div className="w-full bg-slate-800/80 border-b border-slate-700/50 p-8 flex justify-center items-end min-h-[380px] shadow-[inset_0_-10px_20px_rgba(0,0,0,0.5)] select-none">
             
             <div className="relative mx-auto w-[650px] mt-12">
               
+              {/* Coiled Cable Canvas */}
+              <svg className="absolute inset-0 w-full h-full z-10 pointer-events-none overflow-visible">
+                <path ref={wireRef} d="" fill="transparent" stroke="#1e293b" strokeWidth="16" strokeLinecap="round" strokeDasharray="6 8" />
+                <path ref={wireInnerRef} d="" fill="transparent" stroke="#0f172a" strokeWidth="8" strokeLinecap="round" strokeDasharray="6 8" />
+              </svg>
+
               {/* Handheld Mic (Resting on top) */}
-              <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-32 bg-gradient-to-b from-slate-800 to-slate-950 rounded-[2rem] border-2 border-slate-600 shadow-2xl z-20 flex flex-col items-center px-3 py-4">
+              <div 
+                className="absolute -top-24 left-1/2 w-32 bg-gradient-to-b from-slate-800 to-slate-950 rounded-[2rem] border-2 border-slate-600 shadow-2xl z-20 flex flex-col items-center px-3 py-4 cursor-grab active:cursor-grabbing hover:brightness-110 transition-[filter]"
+                style={{ transform: `translate(calc(-50% + ${micPos.x}px), ${micPos.y}px)` }}
+                onMouseDown={(e) => {
+                  isDraggingMic.current = true;
+                  dragStart.current = { x: e.clientX, y: e.clientY, startMicX: micPos.x, startMicY: micPos.y };
+                }}
+              >
                 {/* Speaker Grill */}
-                <div className="w-full h-10 bg-slate-950 rounded-xl mb-3 flex flex-col justify-center gap-1 p-2 shadow-inner">
+                <div className="w-full h-10 bg-slate-950 rounded-xl mb-3 flex flex-col justify-center gap-1 p-2 shadow-inner pointer-events-none">
                   {[1,2,3].map(i => <div key={i} className="h-1 w-full bg-slate-800 rounded-full"></div>)}
                 </div>
                 {/* Keypad */}
                 <div className="grid grid-cols-3 gap-1.5 w-full">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                    <button key={num} onClick={() => { setInputBuffer(p => p.length < 5 ? p + num : p); playStatic(50); }} className="h-6 bg-slate-700 hover:bg-slate-600 rounded text-[10px] text-white font-bold shadow-sm active:translate-y-px">{num}</button>
+                    <button key={num} onClick={(e) => { e.stopPropagation(); setInputBuffer(p => p.length < 5 ? p + num : p); playStatic(50); }} className="h-6 bg-slate-700 hover:bg-slate-600 rounded text-[10px] text-white font-bold shadow-sm active:translate-y-px">{num}</button>
                   ))}
-                  <button onClick={() => { setInputBuffer(p => p.length < 5 && !p.includes('A') ? p + 'A' : p); playStatic(50); }} className="h-6 bg-purple-900/80 hover:bg-purple-800 rounded text-[10px] text-purple-200 font-bold shadow-sm active:translate-y-px">A</button>
-                  <button onClick={() => { setInputBuffer(p => p.length < 5 ? p + '0' : p); playStatic(50); }} className="h-6 bg-slate-700 hover:bg-slate-600 rounded text-[10px] text-white font-bold shadow-sm active:translate-y-px">0</button>
-                  <button onClick={() => { setCurrentChannel('WX'); setInputBuffer(''); playStatic(300); }} className="h-6 bg-blue-900/80 hover:bg-blue-800 rounded text-[10px] text-blue-200 font-bold shadow-sm active:translate-y-px">WX</button>
-                  <button onClick={() => { setInputBuffer(p => p.length < 5 && !p.includes('.') ? p + '.' : p); playStatic(50); }} className="h-6 bg-slate-700 hover:bg-slate-600 rounded text-[10px] text-white font-bold shadow-sm active:translate-y-px">.</button>
-                  <button onClick={() => { setInputBuffer(''); playStatic(150); }} className="h-6 bg-red-900/80 hover:bg-red-800 rounded text-[10px] text-red-200 font-bold shadow-sm active:translate-y-px">CLR</button>
-                  <button onClick={() => { if (inputBuffer) { setCurrentChannel(inputBuffer); setInputBuffer(''); playStatic(300); } }} className="h-6 bg-emerald-900/80 hover:bg-emerald-800 rounded text-[10px] text-emerald-200 font-bold shadow-sm active:translate-y-px">ENT</button>
+                  <button onClick={(e) => { e.stopPropagation(); setInputBuffer(p => p.length < 5 && !p.includes('A') ? p + 'A' : p); playStatic(50); }} className="h-6 bg-purple-900/80 hover:bg-purple-800 rounded text-[10px] text-purple-200 font-bold shadow-sm active:translate-y-px">A</button>
+                  <button onClick={(e) => { e.stopPropagation(); setInputBuffer(p => p.length < 5 ? p + '0' : p); playStatic(50); }} className="h-6 bg-slate-700 hover:bg-slate-600 rounded text-[10px] text-white font-bold shadow-sm active:translate-y-px">0</button>
+                  <button onClick={(e) => { e.stopPropagation(); setCurrentChannel('WX'); setInputBuffer(''); playStatic(300); }} className="h-6 bg-blue-900/80 hover:bg-blue-800 rounded text-[10px] text-blue-200 font-bold shadow-sm active:translate-y-px">WX</button>
+                  <button onClick={(e) => { e.stopPropagation(); setInputBuffer(p => p.length < 5 && !p.includes('.') ? p + '.' : p); playStatic(50); }} className="h-6 bg-slate-700 hover:bg-slate-600 rounded text-[10px] text-white font-bold shadow-sm active:translate-y-px">.</button>
+                  <button onClick={(e) => { e.stopPropagation(); setInputBuffer(''); playStatic(150); }} className="h-6 bg-red-900/80 hover:bg-red-800 rounded text-[10px] text-red-200 font-bold shadow-sm active:translate-y-px">CLR</button>
+                  <button onClick={(e) => { e.stopPropagation(); if (inputBuffer) { setCurrentChannel(inputBuffer); setInputBuffer(''); playStatic(300); } }} className="h-6 bg-emerald-900/80 hover:bg-emerald-800 rounded text-[10px] text-emerald-200 font-bold shadow-sm active:translate-y-px">ENT</button>
                 </div>
                 {/* PTT Button */}
-                <div className="absolute -left-2 top-8 w-2 h-16 bg-red-600 rounded-l-md border border-red-800 shadow-[inset_-2px_0_4px_rgba(0,0,0,0.5)] cursor-pointer active:bg-red-500"></div>
+                <div 
+                  className="absolute -left-2 top-8 w-2 h-16 bg-red-600 rounded-l-md border border-red-800 shadow-[inset_-2px_0_4px_rgba(0,0,0,0.5)] cursor-pointer active:bg-red-500"
+                  onMouseDown={(e) => { e.stopPropagation(); playStatic(100); }}
+                ></div>
                 {/* Mic Cable attach */}
-                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-6 h-6 bg-slate-900 rounded-full z-[-1]"></div>
+                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-6 h-6 bg-slate-900 rounded-full z-[-1] pointer-events-none"></div>
               </div>
-
-              {/* Coiled Cable */}
-              <svg className="absolute -left-12 top-10 w-24 h-48 z-10 pointer-events-none" viewBox="0 0 100 200">
-                <path d="M 50,0 Q 20,20 50,40 T 50,80 T 50,120 T 50,160 Q 80,180 90,200" fill="transparent" stroke="#1e293b" strokeWidth="8" strokeLinecap="round" />
-                <path d="M 50,0 Q 20,20 50,40 T 50,80 T 50,120 T 50,160 Q 80,180 90,200" fill="transparent" stroke="#0f172a" strokeWidth="4" strokeLinecap="round" />
-              </svg>
 
               {/* Base Unit */}
               <div className="relative w-full h-[220px] bg-gradient-to-b from-slate-800 to-slate-950 rounded-2xl border-2 border-slate-600 shadow-[0_30px_60px_rgba(0,0,0,0.8)] p-4 flex gap-4 z-10">
