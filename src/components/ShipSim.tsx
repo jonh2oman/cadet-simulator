@@ -15,8 +15,8 @@ export default function ShipSim() {
   });
 
   const buoys = useRef([
-    { id: '1', type: 'port', x: 600, y: 100 }, // Green
-    { id: '2', type: 'starboard', x: 700, y: 100 }, // Red
+    { id: '1', type: 'port', x: 200, y: 200 }, // Green
+    { id: '2', type: 'starboard', x: 200, y: 0 }, // Red
   ]);
 
   // Engine & System controls
@@ -330,20 +330,20 @@ export default function ShipSim() {
       
       switch (controlsRef.current.jettyType) {
         case 'straight': 
-          jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: 40, y: 0, w: 210, h: 40 }]; 
+          jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: 40, y: 80, w: 210, h: 40 }]; 
           berthZone = { x: -80, y: 20, w: 70, h: 160, snapX: 460, snapY: 150, snapH: 0 };
           break;
         case 'l-shape': 
-          jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: 40, y: 0, w: 100, h: 40 }, { x: 140, y: 0, w: 110, h: 40 }]; 
-          berthZone = { x: 40, y: 40, w: 100, h: 120, snapX: 590, snapY: 150, snapH: 0 };
+          jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: -100, y: 0, w: 100, h: 40 }, { x: 40, y: 80, w: 210, h: 40 }]; 
+          berthZone = { x: -80, y: 40, w: 80, h: 140, snapX: 460, snapY: 150, snapH: 0 };
           break;
         case 'u-shape': 
-          jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: 40, y: 0, w: 100, h: 40 }, { x: 40, y: 160, w: 100, h: 40 }, { x: 140, y: 0, w: 110, h: 40 }, { x: 140, y: 160, w: 110, h: 40 }]; 
-          berthZone = { x: 40, y: 40, w: 100, h: 120, snapX: 590, snapY: 150, snapH: 0 };
+          jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: -100, y: 0, w: 100, h: 40 }, { x: -100, y: 160, w: 100, h: 40 }, { x: 40, y: 80, w: 210, h: 40 }]; 
+          berthZone = { x: -100, y: 40, w: 100, h: 120, snapX: 450, snapY: 150, snapH: 0 };
           break;
         case 't-shape': 
-          jettyRects = [{ x: 0, y: 50, w: 40, h: 100 }, { x: -60, y: 0, w: 160, h: 40 }, { x: 40, y: 100, w: 210, h: 40 }]; 
-          berthZone = { x: -60, y: 40, w: 60, h: 110, snapX: 410, snapY: 140, snapH: 0 };
+          jettyRects = [{ x: -40, y: 80, w: 80, h: 40 }, { x: -80, y: -40, w: 40, h: 280 }, { x: 40, y: 80, w: 210, h: 40 }]; 
+          berthZone = { x: -150, y: 20, w: 60, h: 160, snapX: 390, snapY: 150, snapH: 0 };
           break;
       }
       
@@ -544,15 +544,6 @@ export default function ShipSim() {
       ctx.save();
       ctx.translate(dockX, dockY);
       
-      // Connective Bridge to Mainland
-      ctx.fillStyle = '#6b4629'; // darker wood bridge
-      switch (controlsRef.current.jettyType) {
-        case 'straight': ctx.fillRect(40, 0, 210, 40); break;
-        case 'l-shape': ctx.fillRect(140, 0, 110, 40); break;
-        case 'u-shape': ctx.fillRect(140, 0, 110, 40); ctx.fillRect(140, 160, 110, 40); break;
-        case 't-shape': ctx.fillRect(40, 100, 210, 40); break;
-      }
-
       // Organic curved coastline
       ctx.beginPath();
       ctx.moveTo(250, -4000);
@@ -608,23 +599,31 @@ export default function ShipSim() {
       if (currentJettyType === 'straight') {
         ctx.fillRect(0, 0, 40, 200);
         ctx.strokeRect(0, 0, 40, 200);
+        ctx.fillRect(40, 80, 210, 40);
+        ctx.strokeRect(40, 80, 210, 40);
       } else if (currentJettyType === 'l-shape') {
         ctx.fillRect(0, 0, 40, 200);
+        ctx.fillRect(-100, 0, 100, 40);
+        ctx.fillRect(40, 80, 210, 40);
         ctx.strokeRect(0, 0, 40, 200);
-        ctx.fillRect(40, 0, 100, 40);
-        ctx.strokeRect(40, 0, 100, 40);
+        ctx.strokeRect(-100, 0, 100, 40);
+        ctx.strokeRect(40, 80, 210, 40);
       } else if (currentJettyType === 'u-shape') {
         ctx.fillRect(0, 0, 40, 200);
-        ctx.fillRect(40, 0, 100, 40);
-        ctx.fillRect(40, 160, 100, 40);
+        ctx.fillRect(-100, 0, 100, 40);
+        ctx.fillRect(-100, 160, 100, 40);
+        ctx.fillRect(40, 80, 210, 40);
         ctx.strokeRect(0, 0, 40, 200);
-        ctx.strokeRect(40, 0, 100, 40);
-        ctx.strokeRect(40, 160, 100, 40);
+        ctx.strokeRect(-100, 0, 100, 40);
+        ctx.strokeRect(-100, 160, 100, 40);
+        ctx.strokeRect(40, 80, 210, 40);
       } else if (currentJettyType === 't-shape') {
-        ctx.fillRect(0, 50, 40, 100);
-        ctx.strokeRect(0, 50, 40, 100);
-        ctx.fillRect(-60, 0, 160, 40);
-        ctx.strokeRect(-60, 0, 160, 40);
+        ctx.fillRect(-40, 80, 80, 40);
+        ctx.fillRect(-80, -40, 40, 280);
+        ctx.fillRect(40, 80, 210, 40);
+        ctx.strokeRect(-40, 80, 80, 40);
+        ctx.strokeRect(-80, -40, 40, 280);
+        ctx.strokeRect(40, 80, 210, 40);
       }
       
       // Draw Windsock
