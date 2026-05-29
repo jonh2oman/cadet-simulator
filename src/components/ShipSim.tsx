@@ -1,5 +1,89 @@
 import React, { useRef, useEffect, useState } from 'react';
 
+const HorizontalThrusterLever = ({ label, value, onChange }: { label: string, value: number, onChange: (val: number) => void }) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  const updateFromEvent = (e: React.PointerEvent) => {
+    if (!trackRef.current) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    let pct = x / rect.width; // 0 to 1 (left to right)
+    pct = Math.max(0, Math.min(1, pct));
+    const val = Math.round((pct * 200) - 100);
+    if (Math.abs(val) < 5) onChange(0);
+    else onChange(val);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    setIsDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    updateFromEvent(e);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    if (isDragging) {
+      updateFromEvent(e);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    setIsDragging(false);
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="bg-slate-950 border border-slate-700 shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)] rounded p-2 w-32 text-center">
+        <span className="text-[10px] text-slate-500 block mb-1 font-mono tracking-widest">{label}</span>
+        <span className={`text-sm font-mono ${value === 0 ? 'text-slate-500' : 'text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.8)]'}`}>
+          {value > 0 ? `STBD ${value}%` : value < 0 ? `PORT ${Math.abs(value)}%` : '00%'}
+        </span>
+      </div>
+      
+      <div 
+        ref={trackRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onDoubleClick={(e) => { e.stopPropagation(); onChange(0); }}
+        className="lever-container relative h-14 w-40 bg-gradient-to-b from-slate-400 via-slate-100 to-slate-400 rounded-xl shadow-[0_10px_20px_rgba(0,0,0,0.8),inset_0_-5px_10px_rgba(0,0,0,0.5),inset_0_5px_10px_rgba(255,255,255,0.8)] border border-slate-300 flex items-center justify-center cursor-pointer select-none touch-none overflow-hidden"
+      >
+        {/* Inner Slot */}
+        <div className="absolute h-5 w-32 bg-slate-950 rounded-full shadow-[inset_0_5px_15px_rgba(0,0,0,1)] flex flex-col justify-center">
+          <div className="w-full h-0.5 bg-white/10"></div>
+        </div>
+        
+        {/* Scale Markings */}
+        <div className="absolute inset-x-3 top-1 flex justify-between px-1 font-mono text-[9px] font-bold text-slate-800 pointer-events-none">
+          <span>PORT</span><span>0</span><span>STBD</span>
+        </div>
+
+        {/* The Lever Arm and Handle */}
+        <div 
+          className="absolute top-1/2 w-10 h-16 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none z-10"
+          style={{ left: `${50 + (value / 2 * 0.8)}%`, transition: isDragging ? 'none' : 'left 0.1s ease-out' }}
+        >
+          {/* Arm Base / Joint */}
+          <div className="h-8 w-4 bg-gradient-to-r from-slate-500 to-slate-300 rounded-full absolute shadow-[inset_0_2px_2px_rgba(255,255,255,0.5)] z-0"></div>
+          {/* Arm Shaft */}
+          <div className="h-6 w-3 bg-gradient-to-r from-slate-400 via-slate-200 to-slate-400 shadow-[inset_0_0_5px_rgba(0,0,0,0.5)] z-0 absolute"></div>
+          {/* Grip */}
+          <div className="h-16 w-8 bg-gradient-to-r from-slate-800 to-black rounded-lg shadow-[0_10px_15px_rgba(0,0,0,0.8),inset_2px_0_5px_rgba(255,255,255,0.3)] border border-slate-600 z-10 flex flex-col items-center justify-center relative">
+             <div className="absolute top-2 bottom-2 left-1 w-2 bg-gradient-to-r from-white/20 to-transparent rounded-full pointer-events-none"></div>
+             {/* Grip accents */}
+             <div className="h-1.5 w-5 bg-amber-500 rounded-full shadow-[0_0_5px_rgba(245,158,11,0.8),inset_0_1px_3px_rgba(0,0,0,0.8)] opacity-90 my-1"></div>
+             <div className="h-1.5 w-5 bg-amber-500 rounded-full shadow-[0_0_5px_rgba(245,158,11,0.8),inset_0_1px_3px_rgba(0,0,0,0.8)] opacity-90 my-1"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function ShipSim() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const speedTextRef = useRef<HTMLSpanElement>(null);
@@ -1359,33 +1443,9 @@ export default function ShipSim() {
           
           {/* Side Thrusters (Corvette/Frigate only) */}
           {(shipClass === 'corvette' || shipClass === 'frigate') && (
-            <div className="flex gap-6 border-r border-slate-700 pr-8 mr-[-16px]">
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">BOW</span>
-                <input 
-                  type="range" 
-                  min="-100" 
-                  max="100" 
-                  value={bowThruster}
-                  onChange={(e) => setBowThruster(parseInt(e.target.value))}
-                  onDoubleClick={() => setBowThruster(0)}
-                  className="w-24 accent-amber-500 cursor-pointer"
-                />
-                <span className="text-xs text-slate-500 font-mono">{bowThruster > 0 ? `STBD ${bowThruster}` : bowThruster < 0 ? `PORT ${Math.abs(bowThruster)}` : '00'}</span>
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">STERN</span>
-                <input 
-                  type="range" 
-                  min="-100" 
-                  max="100" 
-                  value={sternThruster}
-                  onChange={(e) => setSternThruster(parseInt(e.target.value))}
-                  onDoubleClick={() => setSternThruster(0)}
-                  className="w-24 accent-amber-500 cursor-pointer"
-                />
-                <span className="text-xs text-slate-500 font-mono">{sternThruster > 0 ? `STBD ${sternThruster}` : sternThruster < 0 ? `PORT ${Math.abs(sternThruster)}` : '00'}</span>
-              </div>
+            <div className="flex flex-col gap-4 border-r border-slate-700 pr-8 mr-[-16px]">
+              <HorizontalThrusterLever label="BOW THRUSTER" value={bowThruster} onChange={setBowThruster} />
+              <HorizontalThrusterLever label="STERN THRUSTER" value={sternThruster} onChange={setSternThruster} />
             </div>
           )}
 
