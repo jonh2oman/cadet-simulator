@@ -945,6 +945,20 @@ export default function ShipSim() {
         ctx.fillStyle = '#166534'; // green-800
         drawSmoothPoly(island.points, 0.85);
         
+        // Bounding box collision indicator (sand/shoal obstacle warning)
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        island.points.forEach(p => {
+          if (p[0] < minX) minX = p[0];
+          if (p[0] > maxX) maxX = p[0];
+          if (p[1] < minY) minY = p[1];
+          if (p[1] > maxY) maxY = p[1];
+        });
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.35)'; // light amber-200 / yellow-300
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+        ctx.setLineDash([]); // reset
+        
         ctx.restore();
       });
 
