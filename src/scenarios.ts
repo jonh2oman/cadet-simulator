@@ -256,5 +256,150 @@ export const scenarios: Record<string, Record<string, ScenarioNode>> = {
         { speaker: 'TUGBOAT', text: 'Vessel hailing the tugboat, use proper marine protocol and identify yourself. Ironhorse out.' }
       ]
     }
+  },
+  'radio-check': {
+    start: {
+      id: 'start',
+      expectedChannel: 16,
+      messages: [
+        {
+          speaker: 'CADET',
+          text: 'Practice requesting a radio check. Under Canadian ROC-M guidelines, perform a radio check with CCG St. John\'s Radio. Call them on Ch 16.',
+          options: [
+            { text: 'St. John\'s Coast Guard Radio, St. John\'s Coast Guard Radio, St. John\'s Coast Guard Radio. This is Cadet Vessel. Requesting a radio check. Over.', nextNode: 'check-1' },
+            { text: 'Hey St. John\'s Coast Guard, do you copy? Radio check please.', nextNode: 'check-fail-informal' }
+          ]
+        }
+      ]
+    },
+    'check-1': {
+      id: 'check-1',
+      messages: [
+        {
+          speaker: 'COAST GUARD',
+          text: 'Cadet Vessel, this is St. John\'s Coast Guard Radio. Shift to working Channel 83B for radio check. Over.',
+          options: [
+            { text: 'Roger. Shifting to Channel 83B. Cadet Vessel out.', nextNode: 'check-shift-83' }
+          ]
+        }
+      ]
+    },
+    'check-shift-83': {
+      id: 'check-shift-83',
+      expectedChannel: '83B',
+      messages: [
+        {
+          speaker: 'OTHER',
+          text: '(St. John\'s Coast Guard Radio on Ch 83B): Cadet Vessel, this is St. John\'s Coast Guard Radio. How do you read me? Over.',
+          options: [
+            { text: 'St. John\'s Coast Guard Radio, this is Cadet Vessel. I read you strength 5, loud and clear. Over.', nextNode: 'check-success' }
+          ]
+        }
+      ]
+    },
+    'check-success': {
+      id: 'check-success',
+      messages: [
+        { speaker: 'COAST GUARD', text: 'Roger Cadet Vessel. St. John\'s Coast Guard Radio reads you strength 5, loud and clear. Out.' }
+      ]
+    },
+    'check-fail-informal': {
+      id: 'check-fail-informal',
+      messages: [
+        { speaker: 'COAST GUARD', text: 'Vessel calling Coast Guard, be advised Channel 16 is for distress, urgency, safety, and calling. Use proper protocol and call signs. St. John\'s Coast Guard out.' }
+      ]
+    }
+  },
+  'mayday-relay': {
+    start: {
+      id: 'start',
+      expectedChannel: 16,
+      messages: [
+        {
+          speaker: 'CADET',
+          text: 'You spot the small pleasure craft "Blue Fin" capsizing 2 miles north of your position. Their radio is silent. You must broadcast a MAYDAY RELAY on Ch 16 to the Coast Guard.',
+          options: [
+            { text: 'MAYDAY RELAY, MAYDAY RELAY, MAYDAY RELAY. All stations, this is Cadet Vessel.', nextNode: 'relay-1' },
+            { text: 'MAYDAY, MAYDAY, MAYDAY. This is Cadet Vessel. A boat has capsized.', nextNode: 'relay-fail-direct' }
+          ]
+        }
+      ]
+    },
+    'relay-1': {
+      id: 'relay-1',
+      messages: [
+        {
+          speaker: 'COAST GUARD',
+          text: 'Vessel calling MAYDAY RELAY, this is St. John\'s Coast Guard Radio. Go ahead with your distress relay traffic. Over.',
+          options: [
+            { text: 'St. John\'s Coast Guard, this is Cadet Vessel. We have observed the pleasure craft Blue Fin capsize. Position: 2 miles north of Brockville Breakwater. 3 persons in the water. Over.', nextNode: 'relay-success' }
+          ]
+        }
+      ]
+    },
+    'relay-success': {
+      id: 'relay-success',
+      messages: [
+        {
+          speaker: 'COAST GUARD',
+          text: 'Roger Cadet Vessel. Coast Guard St. John\'s copies your MAYDAY RELAY. SAR helicopter and CCG cutter are dispatched to the Blue Fin. Acknowledge and maintain watch. Over.',
+          options: [
+            { text: 'Roger, Cadet Vessel will assist and stand by. Cadet Vessel out.', nextNode: 'relay-complete' }
+          ]
+        }
+      ]
+    },
+    'relay-complete': {
+      id: 'relay-complete',
+      messages: [
+        { speaker: 'COAST GUARD', text: 'Thank you for the relay. St. John\'s Coast Guard out.' }
+      ]
+    },
+    'relay-fail-direct': {
+      id: 'relay-fail-direct',
+      messages: [
+        { speaker: 'COAST GUARD', text: 'Vessel calling MAYDAY, you are transmitting a direct distress call. Be advised you must use MAYDAY RELAY if you are transmitting on behalf of another vessel. St. John\'s Coast Guard out.' }
+      ]
+    }
+  },
+  'dsc-cancel': {
+    start: {
+      id: 'start',
+      expectedChannel: 16,
+      messages: [
+        {
+          speaker: 'CADET',
+          text: 'You accidentally triggered the red DSC Distress button on your radio. A DSC alert was transmitted. Under ROC-M guidelines, cancel the alert on Ch 16 immediately.',
+          options: [
+            { text: 'All stations, all stations, all stations. This is Cadet Vessel, MMSI 316001234. Cancel my DSC distress alert of 1200 UTC. Over.', nextNode: 'cancel-1' },
+            { text: 'Nevermind Coast Guard, that was a mistake. Cadet Vessel out.', nextNode: 'cancel-fail-informal' }
+          ]
+        }
+      ]
+    },
+    'cancel-1': {
+      id: 'cancel-1',
+      messages: [
+        {
+          speaker: 'COAST GUARD',
+          text: 'Vessel calling DSC cancellation, this is Canadian Coast Guard Radio. Please confirm you have no emergency on board and that your alert was accidental. Over.',
+          options: [
+            { text: 'Coast Guard, this is Cadet Vessel. Confirming alert was accidental. No assistance required. 4 persons on board. Safe. Over.', nextNode: 'cancel-success' }
+          ]
+        }
+      ]
+    },
+    'cancel-success': {
+      id: 'cancel-success',
+      messages: [
+        { speaker: 'COAST GUARD', text: 'Roger Cadet Vessel. Accidental distress alert cancelled. St. John\'s Coast Guard out.' }
+      ]
+    },
+    'cancel-fail-informal': {
+      id: 'cancel-fail-informal',
+      messages: [
+        { speaker: 'COAST GUARD', text: 'Vessel calling, you must identify your vessel name and provide your MMSI to cancel a DSC alert. St. John\'s Coast Guard out.' }
+      ]
+    }
   }
 };

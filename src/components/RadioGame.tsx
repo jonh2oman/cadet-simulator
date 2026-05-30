@@ -54,12 +54,56 @@ const playStatic = (duration = 300, continuous = false): any => {
   return noise;
 };
 
+const playDscAlarm = (duration = 3000): void => {
+  const ctx = getAudioCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(1300, ctx.currentTime);
+
+  const gainNode = ctx.createGain();
+  gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
+
+  osc.connect(gainNode);
+  gainNode.connect(ctx.destination);
+  
+  osc.start();
+
+  let alternating = true;
+  const interval = setInterval(() => {
+    try {
+      osc.frequency.setValueAtTime(alternating ? 2100 : 1300, ctx.currentTime);
+      alternating = !alternating;
+    } catch (e) {}
+  }, 250);
+
+  setTimeout(() => {
+    clearInterval(interval);
+    try { osc.stop(); } catch (e) {}
+  }, duration);
+};
+
+const getFemaleVoice = () => {
+  const voices = window.speechSynthesis.getVoices();
+  // Preferred high-quality female voices on macOS, Chrome, and general browsers
+  const preferred = ['Samantha', 'Google US English', 'Tessa', 'Victoria', 'Karen', 'Moira'];
+  for (const name of preferred) {
+    const found = voices.find(v => v.name.includes(name) && v.lang.startsWith('en'));
+    if (found) return found;
+  }
+  // Fallback to any English voice
+  return voices.find(v => v.lang.startsWith('en')) || null;
+};
+
 export default function RadioGame() {
   const [activeScenario, setActiveScenario] = useState<string>('distress-mayday');
   const [currentNodeId, setCurrentNodeId] = useState<string>('start');
   const [commsLog, setCommsLog] = useState<RadioMessage[]>([]);
   const [currentChannel, setCurrentChannel] = useState<string>('16');
   const [inputBuffer, setInputBuffer] = useState<string>('');
+  const [vesselName, setVesselName] = useState<string>('Cadet Vessel');
+  const [distressAlertActive, setDistressAlertActive] = useState<boolean>(false);
   
   // Handheld Drag & Jelly Wire State
   const [micPos, setMicPos] = useState({ x: 0, y: 0 });
@@ -167,8 +211,10 @@ export default function RadioGame() {
       
       const weatherScript = "Marine forecast for the coastal waters. Wind northwest 15 to 20 knots. Seas 2 to 4 feet. Chance of showers. Visibility 5 nautical miles. End of message.";
       const msg = new SpeechSynthesisUtterance(weatherScript);
-      msg.rate = 0.85;
-      msg.pitch = 0.7;
+      const voice = getFemaleVoice();
+      if (voice) msg.voice = voice;
+      msg.rate = 1.0;
+      msg.pitch = 1.0;
       msg.onend = () => {
         if (weatherNoiseRef.current) {
           try { weatherNoiseRef.current.stop(); } catch(e) {}
@@ -213,13 +259,23 @@ export default function RadioGame() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [inputBuffer]);
 
-  // Voice acting for NPC traffic
+  const formatVesselName = (text: string) => {
+    if (!text) return text;
+    let formatted = text;
+    formatted = formatted.replace(/sailing vessel Cadet/gi, `sailing vessel ${vesselName}`);
+    formatted = formatted.replace(/Cadet Vessel/gi, vesselName);
+    formatted = formatted.replace(/\bCadet\b/g, vesselName);
+    return formatted;
+  };
+
+  // Voice acting NPC traffic
   useEffect(() => {
     if (commsLog.length === 0) return;
     const lastMsg = commsLog[commsLog.length - 1];
     
-    // Only voice NPC messages
-    if (lastMsg.speaker !== 'CADET' && lastMsg.speaker !== 'OTHER') {
+    // Only voice NPC messages (not the Cadet, and not purely instructional notes in parentheses)
+    const isInstructional = lastMsg.text.trim().startsWith('(') && lastMsg.text.trim().endsWith(')');
+    if (lastMsg.speaker !== 'CADET' && !isInstructional) {
       window.speechSynthesis.cancel();
       
       // Start static background
@@ -228,14 +284,20 @@ export default function RadioGame() {
       }
       weatherNoiseRef.current = playStatic(0, true);
       
-      const msg = new SpeechSynthesisUtterance(lastMsg.text);
-      msg.rate = 0.95;
+      let textToSpeak = formatVesselName(lastMsg.text);
+      // Clean up bracketed speaker/channel prefixes (e.g. "(St. John's CCG on 83B): Hello") for TTS
+      if (textToSpeak.startsWith('(') && textToSpeak.includes('):')) {
+        textToSpeak = textToSpeak.substring(textToSpeak.indexOf('):') + 2).trim();
+      }
       
-      // Give different pitches based on the speaker to make them sound like different people
-      if (lastMsg.speaker === 'COAST GUARD') msg.pitch = 0.9;
-      else if (lastMsg.speaker === 'TUGBOAT') msg.pitch = 0.6;
-      else if (lastMsg.speaker === 'MARINA') msg.pitch = 1.1;
-      else msg.pitch = 1.0;
+      // Improve pronunciation of "securite" to sound like "say-cure-it-ay"
+      textToSpeak = textToSpeak.replace(/securite/gi, 'secur-it-ay').replace(/sécurité/gi, 'secur-it-ay');
+      
+      const msg = new SpeechSynthesisUtterance(textToSpeak);
+      const voice = getFemaleVoice();
+      if (voice) msg.voice = voice;
+      msg.rate = 1.0;
+      msg.pitch = 1.0;
 
       msg.onend = () => {
         if (weatherNoiseRef.current) {
@@ -251,6 +313,7 @@ export default function RadioGame() {
   const changeScenario = (id: string) => {
     setActiveScenario(id);
     setCurrentNodeId('start');
+    setDistressAlertActive(id === 'dsc-cancel');
   };
 
   const handleOptionClick = (nextNode: string) => {
@@ -258,6 +321,9 @@ export default function RadioGame() {
     if (node) {
       setCommsLog(prev => [...prev, ...node.messages]);
       setCurrentNodeId(nextNode);
+      if (nextNode === 'cancel-success') {
+        setDistressAlertActive(false);
+      }
     }
   };
 
@@ -266,7 +332,7 @@ export default function RadioGame() {
       {/* Background CRT styling */}
       <div className="absolute inset-0 screen-crt opacity-20 mix-blend-overlay pointer-events-none"></div>
 
-      <div className="w-full max-w-5xl h-full max-h-[850px] glass-panel border border-slate-700/50 rounded-2xl flex flex-col shadow-2xl z-10 overflow-hidden">
+      <div className="w-full max-w-7xl h-full max-h-[850px] glass-panel border border-slate-700/50 rounded-2xl flex flex-col shadow-2xl z-10 overflow-hidden">
         
         {/* Radio Header */}
         <div className="p-6 border-b border-slate-700/50 bg-slate-800/80 flex-shrink-0 flex items-center justify-between">
@@ -277,23 +343,41 @@ export default function RadioGame() {
               <p className="text-slate-400 text-xs tracking-widest uppercase mt-1">Communications Training Simulator</p>
             </div>
           </div>
-          <select 
-            value={activeScenario}
-            onChange={(e) => changeScenario(e.target.value)}
-            className="bg-slate-950 border-2 border-slate-700 text-sm text-emerald-400 font-mono rounded px-4 py-2 outline-none shadow-inner"
-          >
-            <option value="distress-mayday">Scenario: DISTRESS (MAYDAY)</option>
-            <option value="medical-panpan">Scenario: MEDICAL (PAN-PAN)</option>
-            <option value="hazard-securite">Scenario: HAZARD (SECURITE)</option>
-            <option value="bridge-to-bridge">Scenario: BRIDGE-TO-BRIDGE</option>
-          </select>
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Vessel Name</span>
+              <input 
+                type="text" 
+                value={vesselName} 
+                onChange={(e) => setVesselName(e.target.value)}
+                placeholder="Enter vessel name..."
+                className="bg-slate-950 border-2 border-slate-700 text-sm text-emerald-400 font-mono rounded px-3 py-1.5 outline-none shadow-inner w-48 focus:border-emerald-500/50 transition-colors"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Training Scenario</span>
+              <select 
+                value={activeScenario}
+                onChange={(e) => changeScenario(e.target.value)}
+                className="bg-slate-950 border-2 border-slate-700 text-sm text-emerald-400 font-mono rounded px-4 py-1.5 outline-none shadow-inner cursor-pointer"
+              >
+                <option value="distress-mayday">Scenario: DISTRESS (MAYDAY)</option>
+                <option value="medical-panpan">Scenario: MEDICAL (PAN-PAN)</option>
+                <option value="hazard-securite">Scenario: HAZARD (SECURITE)</option>
+                <option value="bridge-to-bridge">Scenario: BRIDGE-TO-BRIDGE</option>
+                <option value="radio-check">Scenario: RADIO CHECK (ROC-M)</option>
+                <option value="mayday-relay">Scenario: MAYDAY RELAY (ROC-M)</option>
+                <option value="dsc-cancel">Scenario: DSC CANCELLATION (ROC-M)</option>
+              </select>
+            </div>
+          </div>
         </div>
         
-        <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Hardware Panel - Top Half */}
-          <div className="w-full bg-slate-800/80 border-b border-slate-700/50 p-8 flex justify-center items-end min-h-[380px] shadow-[inset_0_-10px_20px_rgba(0,0,0,0.5)] select-none">
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+          {/* Hardware Panel - Left Column */}
+          <div className="w-full md:w-[680px] bg-slate-800/80 border-b md:border-b-0 md:border-r border-slate-700/50 p-6 flex flex-col justify-center items-center shadow-[inset_-10px_0_20px_rgba(0,0,0,0.3)] select-none flex-shrink-0 overflow-y-auto">
             
-            <div className="relative mx-auto w-[650px] mt-12">
+            <div className="relative w-[650px] my-auto">
               
               {/* Coiled Cable Canvas */}
               <svg className="absolute inset-0 w-full h-full z-10 pointer-events-none overflow-visible">
@@ -351,7 +435,7 @@ export default function RadioGame() {
 
                 {/* Center Screen Area */}
                 <div className="flex-1 flex flex-col gap-2 relative">
-                  <div className="flex-1 bg-[#ffb000] rounded-lg border-[6px] border-slate-900 shadow-[inset_0_0_30px_rgba(217,119,6,0.9)] p-4 relative flex flex-col overflow-hidden">
+                  <div className={`flex-1 rounded-lg border-[6px] border-slate-900 p-4 relative flex flex-col overflow-hidden transition-colors duration-300 ${distressAlertActive ? 'bg-red-600 shadow-[inset_0_0_30px_rgba(220,38,38,0.9)] animate-pulse' : 'bg-[#ffb000] shadow-[inset_0_0_30px_rgba(217,119,6,0.9)]'}`}>
                     {/* Screen reflection */}
                     <div className="absolute top-0 left-0 w-full h-1/2 bg-white/10 rounded-t-sm pointer-events-none"></div>
                     
@@ -359,7 +443,7 @@ export default function RadioGame() {
                     <div className="w-full flex justify-between items-start">
                       <div className="flex gap-2">
                         <div className="text-[10px] text-black/80 font-mono font-bold bg-black/10 px-1 rounded">25W</div>
-                        <div className="text-[10px] text-black/80 font-mono font-bold bg-black/10 px-1 rounded">USA</div>
+                        <div className="text-[10px] text-black/80 font-mono font-bold bg-black/10 px-1 rounded">CAN</div>
                         {currentChannel === 'WX' && <div className="text-[10px] text-black/80 font-mono font-bold bg-black/10 px-1 rounded animate-pulse">WX</div>}
                       </div>
                       <div className="text-[10px] text-black/80 font-mono font-bold bg-black/10 px-1 rounded">
@@ -369,8 +453,14 @@ export default function RadioGame() {
 
                     <div className="flex-1 flex items-center justify-between mt-2">
                       <div className="flex flex-col text-black/80 font-mono text-[10px] leading-tight">
-                        <div>LAT: 45° 30'N</div>
-                        <div>LON: 60° 15'W</div>
+                        {distressAlertActive ? (
+                          <div className="font-bold text-red-950 bg-white/40 px-1.5 py-0.5 rounded text-[8px] tracking-wide animate-pulse">DISTRESS ACTIVE</div>
+                        ) : (
+                          <>
+                            <div>LAT: 45° 30'N</div>
+                            <div>LON: 60° 15'W</div>
+                          </>
+                        )}
                         <div className="mt-1 font-bold">{new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit'})} UTC</div>
                       </div>
                       <div className="flex items-start">
@@ -400,7 +490,14 @@ export default function RadioGame() {
                 {/* Right Controls */}
                 <div className="w-[120px] h-full flex flex-col items-center justify-between py-2 relative">
                    {/* DISTRESS Flap */}
-                   <div className="absolute top-0 right-0 w-12 h-8 bg-red-600 rounded-bl-xl border-b-2 border-l-2 border-red-800 shadow-md flex items-center justify-center cursor-pointer hover:bg-red-500 transition-colors">
+                   <div 
+                      onClick={() => {
+                        playDscAlarm(3000);
+                        changeScenario('dsc-cancel');
+                        setDistressAlertActive(true);
+                      }}
+                      className="absolute top-0 right-0 w-12 h-8 bg-red-600 rounded-bl-xl border-b-2 border-l-2 border-red-800 shadow-md flex items-center justify-center cursor-pointer hover:bg-red-500 transition-colors active:scale-95 z-20"
+                   >
                      <span className="text-[6px] text-white font-bold">DISTRESS</span>
                    </div>
 
@@ -435,15 +532,15 @@ export default function RadioGame() {
             </div>
           </div>
           
-          {/* Comms Log Panel - Bottom Half */}
-          <div className="flex-1 p-8 flex flex-col bg-slate-900/90 overflow-hidden relative border-t-4 border-slate-950">
+          {/* Comms Log Panel - Right Column */}
+          <div className="flex-1 p-8 flex flex-col bg-slate-900/90 overflow-hidden relative border-t-4 md:border-t-0 md:border-l-4 border-slate-950">
             <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Live Communications Transcript</h3>
             <div className="flex-1 overflow-y-auto pr-4 space-y-4 font-mono text-base">
               
               {commsLog.map((msg, idx) => (
                 <div key={idx} className={"rounded-xl p-5 border-2 shadow-lg " + (msg.speaker === 'CADET' ? 'bg-blue-950/40 border-blue-900/50 ml-12' : 'bg-slate-800/80 border-slate-700/80 mr-12')}>
                   <div className="text-xs text-slate-400 mb-2 font-bold">{msg.speaker}</div>
-                  <div className={msg.speaker === 'CADET' ? 'text-emerald-300 text-lg' : 'text-blue-200 text-lg'}>"{msg.text}"</div>
+                  <div className={msg.speaker === 'CADET' ? 'text-emerald-300 text-lg' : 'text-blue-200 text-lg'}>"{formatVesselName(msg.text)}"</div>
                   
                   {msg.options && (
                     <div className="mt-6 flex flex-col gap-3">
@@ -460,7 +557,7 @@ export default function RadioGame() {
                               onClick={() => handleOptionClick(opt.nextNode)}
                               className="text-left px-5 py-3 bg-slate-900 hover:bg-slate-700 rounded-lg border border-slate-600 text-sm text-slate-200 transition-all shadow hover:shadow-emerald-500/20 hover:border-emerald-500/50"
                             >
-                              {opt.text}
+                              {formatVesselName(opt.text)}
                             </button>
                           ))}
                         </>

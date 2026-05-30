@@ -1,14 +1,18 @@
 import { useState } from 'react';
-import { Anchor } from 'lucide-react';
+import { Anchor, HelpCircle } from 'lucide-react';
 import ShipSim from './components/ShipSim';
 import RadioGame from './components/RadioGame';
 import AlphabetGame from './components/AlphabetGame';
 import FlagsGame from './components/FlagsGame';
+import KnotsModule from './components/KnotsModule';
+import ClockModule from './components/ClockModule';
+import HelpModal from './components/HelpModal';
 import Home from './components/Home';
 import { ArrowLeft } from 'lucide-react';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'home' | 'ship' | 'radio' | 'alphabet' | 'flags'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'ship' | 'radio' | 'alphabet' | 'flags' | 'knots' | 'clock'>('home');
+  const [showHelp, setShowHelp] = useState(false);
 
   return (
     <div className="h-screen w-screen flex flex-col font-sans bg-slate-950 overflow-hidden text-slate-200">
@@ -22,29 +26,53 @@ function App() {
               Nautical Navigator
             </h1>
             <span className="ml-4 px-3 py-1 text-xs font-bold bg-blue-900/40 text-blue-300 rounded border border-blue-700/50 uppercase tracking-widest shadow-inner hidden md:block">
-              {activeTab === 'ship' ? 'Ship Simulator' : activeTab === 'radio' ? 'Radio Game' : activeTab === 'alphabet' ? 'Phonetic Alphabet' : 'Flags & Pennants'}
+              {activeTab === 'ship'
+                ? 'Ship Simulator'
+                : activeTab === 'radio'
+                ? 'Radio Game'
+                : activeTab === 'alphabet'
+                ? 'Phonetic Alphabet'
+                : activeTab === 'flags'
+                ? 'Flags & Pennants'
+                : activeTab === 'knots'
+                ? 'Maritime Knots'
+                : '24-Hour Clock'}
             </span>
           </div>
           
-          <button
-            onClick={() => setActiveTab('home')}
-            className="flex items-center gap-2 px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700 font-bold tracking-widest text-sm uppercase shadow-inner"
-          >
-            <ArrowLeft size={18} />
-            <span className="hidden sm:block">Back to Dashboard</span>
-            <span className="sm:hidden">Back</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowHelp(true)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg transition-colors font-bold text-xs uppercase shadow-inner"
+            >
+              <HelpCircle size={16} className="text-blue-400" />
+              <span className="hidden sm:block">Manual</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('home')}
+              className="flex items-center gap-2 px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700 font-bold tracking-widest text-sm uppercase shadow-inner"
+            >
+              <ArrowLeft size={18} />
+              <span className="hidden sm:block">Back to Dashboard</span>
+              <span className="sm:hidden">Back</span>
+            </button>
+          </div>
         </header>
       )}
 
       {/* Main Full-Screen Content Area */}
       <main className="flex-1 w-full h-full relative">
-        {activeTab === 'home' && <Home onNavigate={setActiveTab} />}
+        {activeTab === 'home' && <Home onNavigate={setActiveTab} onOpenHelp={() => setShowHelp(true)} />}
         {activeTab === 'ship' && <ShipSim />}
         {activeTab === 'radio' && <RadioGame />}
         {activeTab === 'alphabet' && <AlphabetGame />}
         {activeTab === 'flags' && <FlagsGame />}
+        {activeTab === 'knots' && <KnotsModule />}
+        {activeTab === 'clock' && <ClockModule />}
       </main>
+
+      {/* Help Modal Overlay */}
+      <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
     </div>
   );
 }
