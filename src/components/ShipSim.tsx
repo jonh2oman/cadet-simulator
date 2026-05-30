@@ -701,38 +701,31 @@ export default function ShipSim() {
       ctx.save();
       ctx.translate(canvas.width / 2, canvas.height / 2);
       ctx.scale(zoomRef.current, zoomRef.current);
+      ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
       const camX = controlsRef.current.simMode === 'heli' ? heliState.current.x : state.x;
       const camY = controlsRef.current.simMode === 'heli' ? heliState.current.y + 150 : state.y;
 
-      // Draw dynamic multi-layered ocean waves
-      const waveTime = Date.now() / 1500;
-      
-      const drawWaveLayer = (size: number, opacity: number, speed: number, color: string, phase: number, shiftAmnt: number) => {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        const offsetX = (state.x * speed) % size;
-        const offsetY = (state.y * speed) % size;
-        
+      // Draw stylized dynamic water waves instead of grid
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)'; // faint sky-blue waves
+      ctx.lineWidth = 1.5;
+      const waveSize = 100;
+      const waveOffsetX = state.x % waveSize;
+      const waveOffsetY = state.y % waveSize;
+      const time = Date.now() / 1000;
+
+      for (let y = -waveOffsetY - waveSize; y < canvas.height + waveSize; y += waveSize * 0.5) {
         ctx.beginPath();
-        for (let y = -offsetY - size; y < canvas.height + size; y += size * 0.6) {
-          for (let x = -offsetX - size; x < canvas.width + size; x += size) {
-            let shift = Math.sin(waveTime + phase + (x/size) + (y/size)) * shiftAmnt;
-            if (x === -offsetX - size) {
-              ctx.moveTo(x, y + shift);
-            } else {
-              ctx.quadraticCurveTo(x - size/2, y - shiftAmnt + shift, x, y + shift);
-            }
+        for (let x = -waveOffsetX - waveSize; x < canvas.width + waveSize; x += waveSize) {
+          const shift = Math.sin((x + y + time * 50) * 0.02) * 10;
+          if (x === -waveOffsetX - waveSize) {
+            ctx.moveTo(x, y + shift);
+          } else {
+            ctx.quadraticCurveTo(x - waveSize/2, y - 10 + shift, x, y + shift);
           }
         }
-        ctx.globalAlpha = opacity;
         ctx.stroke();
-      };
-
-      ctx.globalAlpha = 1;
-      drawWaveLayer(200, 0.15, 0.8, '#0ea5e9', 0, 20); // Deep layer
-      drawWaveLayer(120, 0.25, 1.0, '#38bdf8', 2, 12); // Mid layer
-      drawWaveLayer(70, 0.35, 1.2, '#7dd3fc', 4, 6);   // Surface highlights
-      ctx.globalAlpha = 1;
+      }
 
       // Draw islands
       islandsRef.current.forEach(island => {
@@ -1352,9 +1345,7 @@ export default function ShipSim() {
   }, []);
 
   return (
-    <div className="flex-1 relative bg-slate-900 bg-ocean-gradient overflow-hidden w-full h-full">
-      {/* Dynamic Water CSS Background */}
-      <div className="ocean-texture"></div>
+    <div className="flex-1 relative bg-slate-900 overflow-hidden w-full h-full">
       <div 
         className="absolute inset-0 cursor-crosshair"
         onMouseDown={handleCanvasMouseDown}
