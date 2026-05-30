@@ -1863,7 +1863,7 @@ export default function ShipSim() {
           transform: `translate(calc(-50% + ${panelPos.x}px), ${panelPos.y}px) scale(${panelScale})`,
           transformOrigin: 'bottom center'
         }}
-        className={`absolute bottom-8 left-1/2 bg-slate-800 border-2 border-slate-700 rounded-xl p-6 flex-col gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_2px_4px_rgba(255,255,255,0.1),inset_0_-4px_10px_rgba(0,0,0,0.5)] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} z-20`}
+        className={`absolute bottom-8 left-1/2 bg-slate-800 border-2 border-slate-700 rounded-xl p-6 flex flex-col gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_2px_4px_rgba(255,255,255,0.1),inset_0_-4px_10px_rgba(0,0,0,0.5)] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} z-20`}
       >
           <div className="flex justify-between items-start border-b border-slate-700 pb-3 px-2">
             <div>
@@ -1881,30 +1881,30 @@ export default function ShipSim() {
             </button>
           </div>
 
-          <div className="flex gap-12 items-end px-4">
-             <div className="flex flex-col items-center justify-end" onMouseDown={e => e.stopPropagation()}>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">COLLECTIVE</span>
+          <div className="flex flex-col gap-6 items-center px-4">
+             <div className="flex w-full items-center justify-between gap-4" onMouseDown={e => e.stopPropagation()}>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest w-24">COLLECTIVE</span>
                 <input 
                   type="range"
                   min="0"
                   max="100"
                   value={heliCollective}
                   onChange={(e) => setHeliCollective(parseInt(e.target.value))}
-                  style={{ writingMode: 'vertical-lr', direction: 'rtl' } as any}
-                  className="w-8 h-48 accent-emerald-500 cursor-pointer"
+                  className="flex-1 h-8 accent-emerald-500 cursor-pointer"
                 />
              </div>
-             <div className="flex flex-col items-center justify-center" onMouseDown={e => e.stopPropagation()}>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">CYCLIC</span>
+             
+             <div className="flex w-full justify-between items-center gap-4" onMouseDown={e => e.stopPropagation()}>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest w-24">CYCLIC</span>
                 <div 
-                  className="w-48 h-48 bg-slate-900 rounded-full border-[6px] border-slate-700 relative overflow-hidden shadow-inner flex items-center justify-center cursor-crosshair"
+                  className="w-32 h-32 bg-slate-900 rounded-full border-[6px] border-slate-700 relative overflow-hidden shadow-inner flex items-center justify-center cursor-crosshair mx-auto"
                   onMouseMove={(e) => {
                      if (e.buttons === 1) {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        const x = e.clientX - rect.left - 96; 
-                        const y = e.clientY - rect.top - 96;
-                        heliControlsRef.current.cyclicX = Math.max(-100, Math.min(100, (x / 96) * 100));
-                        heliControlsRef.current.cyclicY = Math.max(-100, Math.min(100, (y / 96) * 100));
+                        const x = e.clientX - rect.left - 64; 
+                        const y = e.clientY - rect.top - 64;
+                        heliControlsRef.current.cyclicX = Math.max(-100, Math.min(100, (x / 64) * 100));
+                        heliControlsRef.current.cyclicY = Math.max(-100, Math.min(100, (y / 64) * 100));
                      }
                   }}
                   onMouseUp={() => {
@@ -1918,11 +1918,12 @@ export default function ShipSim() {
                 >
                    <div className="absolute w-full h-0.5 bg-slate-800"></div>
                    <div className="absolute h-full w-0.5 bg-slate-800"></div>
-                   <div id="cyclic-puck" className="w-12 h-12 bg-emerald-500 rounded-full absolute shadow-lg border-2 border-white pointer-events-none transition-transform duration-75"></div>
+                   <div id="cyclic-puck" className="w-8 h-8 bg-emerald-500 rounded-full absolute shadow-lg border-2 border-white pointer-events-none transition-transform duration-75"></div>
                 </div>
              </div>
-             <div className="flex flex-col items-center justify-end" onMouseDown={e => e.stopPropagation()}>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">YAW (PEDALS)</span>
+             
+             <div className="flex w-full items-center justify-between gap-4" onMouseDown={e => e.stopPropagation()}>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest w-24">YAW (PEDALS)</span>
                 <input 
                   type="range"
                   min="-100"
@@ -1931,7 +1932,7 @@ export default function ShipSim() {
                   onChange={(e) => setHeliPedals(parseInt(e.target.value))}
                   onMouseUp={() => setHeliPedals(0)}
                   onMouseLeave={() => setHeliPedals(0)}
-                  className="w-48 h-8 accent-amber-500 cursor-pointer"
+                  className="flex-1 h-8 accent-amber-500 cursor-pointer"
                 />
              </div>
           </div>
