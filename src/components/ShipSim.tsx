@@ -908,26 +908,51 @@ export default function ShipSim() {
       ctx.save();
       ctx.translate(20, 12);
       // Windsock points AWAY from wind direction
-      ctx.rotate((currentWindDir + 180) * (Math.PI / 180));
+      ctx.rotate(currentWindDir);
       
-      // Length simulates droop: 10px if no wind, 40px at 30 knots
-      const sockLength = 10 + (currentWindSpeed / 30) * 30;
-      
-      // Draw striped windsock (orange)
+      const sockLength = 20 + currentWindSpeed; // Length simulates droop: 10px if no wind, 40px at 30 knots
       ctx.fillStyle = '#f97316';
       ctx.beginPath();
-      ctx.moveTo(0, -5);
-      ctx.lineTo(sockLength, -2);
-      ctx.lineTo(sockLength, 2);
-      ctx.lineTo(0, 5);
+      ctx.moveTo(0, -6);
+      ctx.lineTo(sockLength, -4);
+      ctx.lineTo(sockLength, 4);
+      ctx.lineTo(0, 6);
       ctx.fill();
       
-      // White stripes
       ctx.fillStyle = '#ffffff';
-      if (sockLength > 15) {
+      if (currentWindSpeed > 5) {
         ctx.beginPath(); ctx.moveTo(sockLength * 0.3, -4); ctx.lineTo(sockLength * 0.4, -3); ctx.lineTo(sockLength * 0.4, 3); ctx.lineTo(sockLength * 0.3, 4); ctx.fill();
         ctx.beginPath(); ctx.moveTo(sockLength * 0.7, -3); ctx.lineTo(sockLength * 0.8, -2); ctx.lineTo(sockLength * 0.8, 2); ctx.lineTo(sockLength * 0.7, 3); ctx.fill();
       }
+      ctx.restore();
+      
+      // Draw Helipad (Mission LZ)
+      ctx.save();
+      ctx.translate(150, 100);
+      ctx.shadowColor = 'transparent';
+      
+      ctx.beginPath();
+      ctx.arc(0, 0, 20, 0, Math.PI * 2);
+      ctx.fillStyle = '#ef4444'; // Red outer circle
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(0, 0, 15, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff'; // White inner circle
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(0, 0, 10, 0, Math.PI * 2);
+      ctx.fillStyle = '#ef4444'; // Red inner circle
+      ctx.fill();
+      
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('H', 0, 0);
+      ctx.restore();
+      
       ctx.restore();
 
       ctx.restore();
@@ -1818,6 +1843,18 @@ export default function ShipSim() {
       )}
 
       {/* Physics Panels & Environment Overlays */}
+
+      {simMode === 'heli' && (
+        <div className="absolute top-24 right-8 bg-slate-900/90 p-4 rounded-lg border-2 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)] z-20 w-72 pointer-events-none">
+           <h3 className="text-emerald-400 font-bold mb-2 tracking-widest flex items-center gap-2">
+             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+             EASTER EGG MISSION
+           </h3>
+           <p className="text-sm text-slate-300">
+             Use the Flight Controls panel to fly the helicopter to the mainland Jetty and land safely on the Red & White Helipad (LZ) to complete the mission.
+           </p>
+        </div>
+      )}
 
       {simMode === 'heli' && (
         <div 
