@@ -1856,15 +1856,15 @@ export default function ShipSim() {
         </div>
       )}
 
-      {simMode === 'heli' && (
-        <div 
-          onMouseDown={handleMouseDown}
-          style={{ 
-            transform: `translate(calc(-50% + ${panelPos.x}px), ${panelPos.y}px) scale(${panelScale})`,
-            transformOrigin: 'bottom center'
-          }}
-          className={`absolute bottom-8 left-1/2 bg-slate-800 border-2 border-slate-700 rounded-xl p-6 flex flex-col gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_2px_4px_rgba(255,255,255,0.1),inset_0_-4px_10px_rgba(0,0,0,0.5)] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} z-20`}
-        >
+      <div 
+        onMouseDown={handleMouseDown}
+        style={{ 
+          display: simMode === 'heli' ? 'flex' : 'none',
+          transform: `translate(calc(-50% + ${panelPos.x}px), ${panelPos.y}px) scale(${panelScale})`,
+          transformOrigin: 'bottom center'
+        }}
+        className={`absolute bottom-8 left-1/2 bg-slate-800 border-2 border-slate-700 rounded-xl p-6 flex-col gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_2px_4px_rgba(255,255,255,0.1),inset_0_-4px_10px_rgba(0,0,0,0.5)] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} z-20`}
+      >
           <div className="flex justify-between items-start border-b border-slate-700 pb-3 px-2">
             <div>
               <h3 className="text-xs font-bold text-slate-300 tracking-widest font-mono">BELL FLIGHT SYSTEMS</h3>
@@ -1936,7 +1936,6 @@ export default function ShipSim() {
              </div>
           </div>
         </div>
-      )}
 
       {missionAccomplished && (
         <div className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center pointer-events-auto">
