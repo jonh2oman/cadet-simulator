@@ -617,11 +617,33 @@ export default function ShipSim() {
       if (Math.abs(state.speed) > 0.5) {
         const sternX = state.x - Math.sin(state.heading) * (15 * visualScale);
         const sternY = state.y + Math.cos(state.heading) * (15 * visualScale);
-        particlesRef.current.push({
-          x: sternX + (Math.random() - 0.5) * 8 * visualScale,
-          y: sternY + (Math.random() - 0.5) * 8 * visualScale,
-          life: 1.5
-        });
+        
+        if (shipClass === 'patrol' || shipClass === 'corvette' || shipClass === 'frigate') {
+          // Twin wakes for twin-thruster vessels
+          // Offset perpendicular to heading
+          const offsetX = Math.cos(state.heading) * (4 * visualScale);
+          const offsetY = Math.sin(state.heading) * (4 * visualScale);
+          
+          // Port wake
+          particlesRef.current.push({
+            x: sternX - offsetX + (Math.random() - 0.5) * 4 * visualScale,
+            y: sternY - offsetY + (Math.random() - 0.5) * 4 * visualScale,
+            life: 1.5
+          });
+          // Starboard wake
+          particlesRef.current.push({
+            x: sternX + offsetX + (Math.random() - 0.5) * 4 * visualScale,
+            y: sternY + offsetY + (Math.random() - 0.5) * 4 * visualScale,
+            life: 1.5
+          });
+        } else {
+          // Single wake for outboard/single-screw
+          particlesRef.current.push({
+            x: sternX + (Math.random() - 0.5) * 8 * visualScale,
+            y: sternY + (Math.random() - 0.5) * 8 * visualScale,
+            life: 1.5
+          });
+        }
       }
 
       // Helicopter Physics
