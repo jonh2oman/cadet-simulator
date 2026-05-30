@@ -1771,7 +1771,7 @@ export default function ShipSim() {
 
             <div className="bg-slate-950 border border-slate-700 shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)] rounded p-2 w-32 text-center">
               <span className="text-xs text-slate-500 block mb-1 font-mono">HEADING CMD</span>
-              <span className={`text-xl font-mono ${rudder === 0 ? 'text-slate-500' : 'text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.8)]'}`}>
+              <span className={`text-xl font-mono ${rudder > 0 ? 'text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]' : rudder < 0 ? 'text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]' : 'text-slate-500'}`}>
                 {rudder > 0 ? "STBD " + rudder.toString().padStart(2, '0') : rudder < 0 ? "PORT " + Math.abs(rudder).toString().padStart(2, '0') : '00°'}
               </span>
             </div>
