@@ -1696,8 +1696,8 @@ export default function ShipSim() {
         </button>
 
         {/* Sidebar Content */}
-        <div className="glass-panel p-5 rounded-xl w-80">
-          <h3 className="text-emerald-400 font-bold mb-4 border-b border-slate-800 pb-2 uppercase tracking-widest text-sm flex items-center justify-between">
+        <div className="glass-panel p-5 rounded-xl w-80 max-h-[80vh] overflow-y-auto custom-scrollbar">
+          <h3 className="text-emerald-400 font-bold mb-4 border-b border-slate-800 pb-2 uppercase tracking-widest text-sm flex items-center justify-between sticky top-0 bg-slate-900/60 backdrop-blur-md z-10">
             <span>Realism Settings</span>
             {damageEnabled && shipDamage > 0 && <span className="text-red-500 text-xs">DMG: {Math.round(shipDamage)}%</span>}
           </h3>
