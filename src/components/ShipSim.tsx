@@ -1585,29 +1585,15 @@ export default function ShipSim() {
             <p className="text-[9px] text-slate-500 font-mono tracking-widest mt-0.5">AZIMUTH THRUSTER UNIT LT(N)-H2O</p>
           </div>
           
-          {/* HUD Indicators */}
-          <div className="flex gap-4">
-            <div className="flex flex-col items-center">
-               <span className="text-[7px] text-slate-500 font-mono mb-1">SPEED</span>
-               <div className="bg-slate-950 border border-slate-700 rounded px-2 py-0.5 min-w-[45px] text-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]">
-                 <span ref={speedTextRef} className="text-xs text-emerald-400 font-mono drop-shadow-[0_0_2px_rgba(52,211,153,0.5)]">0.0 kts</span>
-               </div>
-            </div>
-            <div className="flex flex-col items-center">
-               <span className="text-[7px] text-slate-500 font-mono mb-1">HEADING</span>
-               <div className="bg-slate-950 border border-slate-700 rounded px-2 py-0.5 min-w-[45px] text-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]">
-                 <span ref={compassTextRef} className="text-xs text-amber-400 font-mono drop-shadow-[0_0_2px_rgba(251,191,36,0.5)]">000°</span>
-               </div>
-            </div>
-          </div>
-          <div className="flex gap-3 items-center">
+          {/* HUD Indicators (Moved to Compass section) */}
+          <div className="flex gap-4 items-center flex-1 justify-end mr-4">
             <button 
               onMouseDown={(e) => e.stopPropagation()}
               onClick={() => setAnchorDropped(!anchorDropped)}
-              className={`px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-widest rounded border transition-all ${
+              className={`px-6 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest rounded-lg border-b-[3px] active:translate-y-[2px] active:border-b-[1px] transition-all flex-1 max-w-[180px] ${
                 anchorDropped 
-                  ? 'bg-amber-900/50 text-amber-400 border-amber-700 shadow-[inset_0_0_8px_rgba(245,158,11,0.6)]' 
-                  : 'bg-slate-800 text-slate-400 border-slate-600 hover:bg-slate-700 hover:text-slate-200 shadow-[inset_0_0_8px_rgba(0,0,0,0.5)]'
+                  ? 'bg-gradient-to-b from-amber-700 to-amber-900 text-amber-200 border-amber-950 shadow-[0_4px_8px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)]' 
+                  : 'bg-gradient-to-b from-slate-600 to-slate-800 text-slate-200 border-slate-950 hover:from-slate-500 hover:to-slate-700 shadow-[0_4px_8px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)]'
               }`}
             >
               {anchorDropped ? 'WEIGH ANCHOR' : 'DROP ANCHOR'}
@@ -1618,21 +1604,23 @@ export default function ShipSim() {
                 setIsPaused(!isPaused);
                 isPausedRef.current = !isPaused;
               }}
-              className={`px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-widest rounded border transition-all mr-2 ${
+              className={`px-6 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest rounded-lg border-b-[3px] active:translate-y-[2px] active:border-b-[1px] transition-all flex-1 max-w-[180px] mr-4 ${
                 isPaused 
-                  ? 'bg-red-900/50 text-red-400 border-red-700 animate-pulse shadow-[inset_0_0_8px_rgba(220,38,38,0.6)]' 
-                  : 'bg-slate-800 text-slate-400 border-slate-600 hover:bg-slate-700 hover:text-slate-200 shadow-[inset_0_0_8px_rgba(0,0,0,0.5)]'
+                  ? 'bg-gradient-to-b from-red-700 to-red-900 text-red-200 border-red-950 animate-pulse shadow-[0_4px_8px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)]' 
+                  : 'bg-gradient-to-b from-slate-600 to-slate-800 text-slate-200 border-slate-950 hover:from-slate-500 hover:to-slate-700 shadow-[0_4px_8px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)]'
               }`}
             >
               {isPaused ? 'RESUME' : 'PAUSE'}
             </button>
-            <div className="flex flex-col items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8),inset_0_1px_2px_rgba(255,255,255,0.5)]"></div>
-              <span className="text-[7px] text-slate-400 font-mono">SYS OK</span>
-            </div>
-            <div className="flex flex-col items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8),inset_0_1px_2px_rgba(255,255,255,0.5)]"></div>
-              <span className="text-[7px] text-slate-400 font-mono">MANUAL</span>
+            <div className="flex gap-4 bg-slate-900 p-2 rounded-lg border border-slate-800 shadow-inner">
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8),inset_0_1px_2px_rgba(255,255,255,0.5)]"></div>
+                <span className="text-[8px] text-slate-400 font-mono">SYS OK</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8),inset_0_1px_2px_rgba(255,255,255,0.5)]"></div>
+                <span className="text-[8px] text-slate-400 font-mono">MANUAL</span>
+              </div>
             </div>
           </div>
         </div>
@@ -1723,7 +1711,23 @@ export default function ShipSim() {
           </div>
 
           {/* Traditional Compass */}
-          <div className="flex flex-col items-center px-2 pt-6">
+          <div className="flex flex-col items-center px-2 pt-0 justify-end">
+             {/* Speed & Heading Readouts */}
+             <div className="flex gap-4 mb-10 mt-[-10px]">
+               <div className="flex flex-col items-center">
+                 <span className="text-[10px] text-slate-500 font-mono mb-1 font-bold tracking-widest">SPEED</span>
+                 <div className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 min-w-[85px] text-center shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)]">
+                   <span ref={speedTextRef} className="text-xl text-emerald-400 font-mono drop-shadow-[0_0_5px_rgba(52,211,153,0.5)] tracking-wider">0.0 kts</span>
+                 </div>
+               </div>
+               <div className="flex flex-col items-center">
+                 <span className="text-[10px] text-slate-500 font-mono mb-1 font-bold tracking-widest">HEADING</span>
+                 <div className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 min-w-[85px] text-center shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)]">
+                   <span ref={compassTextRef} className="text-xl text-amber-400 font-mono drop-shadow-[0_0_5px_rgba(251,191,36,0.5)] tracking-wider">000°</span>
+                 </div>
+               </div>
+             </div>
+
              <div className="relative w-32 h-32 bg-slate-900 rounded-full border-4 border-slate-950 shadow-[0_5px_15px_rgba(0,0,0,0.5),inset_0_5px_15px_rgba(0,0,0,1)] flex items-center justify-center overflow-hidden">
                {/* Fixed Lubber Line */}
                <div className="absolute top-0 w-1 h-3 bg-red-500 z-20 shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>
