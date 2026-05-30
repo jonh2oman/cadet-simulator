@@ -1524,8 +1524,8 @@ export default function ShipSim() {
         {/* Top Label Plate */}
         <div className="flex justify-between items-start border-b border-slate-700 pb-3 px-2">
           <div>
-            <h3 className="text-xs font-bold text-slate-300 tracking-widest font-mono">KONGSBERG</h3>
-            <p className="text-[9px] text-slate-500 font-mono tracking-widest mt-0.5">AZIMUTH THRUSTER UNIT MK-IV</p>
+            <h3 className="text-xs font-bold text-slate-300 tracking-widest font-mono">H2OMAN CONTROLS</h3>
+            <p className="text-[9px] text-slate-500 font-mono tracking-widest mt-0.5">AZIMUTH THRUSTER UNIT LT(N)-H2O</p>
           </div>
           
           {/* HUD Indicators */}
