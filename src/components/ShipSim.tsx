@@ -701,31 +701,38 @@ export default function ShipSim() {
       ctx.save();
       ctx.translate(canvas.width / 2, canvas.height / 2);
       ctx.scale(zoomRef.current, zoomRef.current);
-      ctx.translate(-canvas.width / 2, -canvas.height / 2);
-
       const camX = controlsRef.current.simMode === 'heli' ? heliState.current.x : state.x;
       const camY = controlsRef.current.simMode === 'heli' ? heliState.current.y + 150 : state.y;
 
-      // Draw stylized dynamic water waves instead of grid
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)'; // faint sky-blue waves
-      ctx.lineWidth = 1.5;
-      const waveSize = 100;
-      const waveOffsetX = state.x % waveSize;
-      const waveOffsetY = state.y % waveSize;
-      const t = time / 1000; // animated over time
-
-      for (let y = -waveOffsetY - waveSize; y < canvas.height + waveSize; y += waveSize * 0.5) {
+      // Draw dynamic multi-layered ocean waves
+      const time = Date.now() / 1500;
+      
+      const drawWaveLayer = (size: number, opacity: number, speed: number, color: string, phase: number, shiftAmnt: number) => {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        const offsetX = (state.x * speed) % size;
+        const offsetY = (state.y * speed) % size;
+        
         ctx.beginPath();
-        for (let x = -waveOffsetX - waveSize; x < canvas.width + waveSize; x += waveSize) {
-          const shift = Math.sin((x + y + t * 50) * 0.02) * 10;
-          if (x === -waveOffsetX - waveSize) {
-            ctx.moveTo(x, y + shift);
-          } else {
-            ctx.quadraticCurveTo(x - waveSize/2, y - 10 + shift, x, y + shift);
+        for (let y = -offsetY - size; y < canvas.height + size; y += size * 0.6) {
+          for (let x = -offsetX - size; x < canvas.width + size; x += size) {
+            let shift = Math.sin(time + phase + (x/size) + (y/size)) * shiftAmnt;
+            if (x === -offsetX - size) {
+              ctx.moveTo(x, y + shift);
+            } else {
+              ctx.quadraticCurveTo(x - size/2, y - shiftAmnt + shift, x, y + shift);
+            }
           }
         }
+        ctx.globalAlpha = opacity;
         ctx.stroke();
-      }
+      };
+
+      ctx.globalAlpha = 1;
+      drawWaveLayer(200, 0.15, 0.8, '#0ea5e9', 0, 20); // Deep layer
+      drawWaveLayer(120, 0.25, 1.0, '#38bdf8', 2, 12); // Mid layer
+      drawWaveLayer(70, 0.35, 1.2, '#7dd3fc', 4, 6);   // Surface highlights
+      ctx.globalAlpha = 1;
 
       // Draw islands
       islandsRef.current.forEach(island => {
@@ -1093,7 +1100,6 @@ export default function ShipSim() {
           ctx.fillRect(-0.5, -6, 1, 12);
           ctx.beginPath();
           ctx.arc(0, 0, 6, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
           ctx.fill();
           ctx.restore();
 
@@ -1346,7 +1352,9 @@ export default function ShipSim() {
   }, []);
 
   return (
-    <div className="flex-1 relative bg-slate-900 overflow-hidden w-full h-full">
+    <div className="flex-1 relative bg-slate-900 bg-ocean-gradient overflow-hidden w-full h-full">
+      {/* Dynamic Water CSS Background */}
+      <div className="ocean-texture"></div>
       <div 
         className="absolute inset-0 cursor-crosshair"
         onMouseDown={handleCanvasMouseDown}
@@ -1373,15 +1381,16 @@ export default function ShipSim() {
       {/* Environment Settings Panel (Collapsible) */}
       <div className={`absolute top-6 right-0 transition-transform duration-300 z-20 flex ${envExpanded ? 'translate-x-0 pr-6' : 'translate-x-full'}`}>
         
-        {/* Toggle Handle */}
+        {/* Sidebar Trigger */}
         <button 
           onClick={() => setEnvExpanded(!envExpanded)}
-          className="absolute -left-8 top-4 bg-slate-900/95 border-y border-l border-slate-700/80 w-8 h-12 flex items-center justify-center rounded-l-xl shadow-lg text-slate-400 hover:text-white backdrop-blur-md"
+          className="absolute -left-8 top-4 glass-panel w-8 h-12 flex items-center justify-center rounded-l-xl text-slate-400 hover:text-white"
         >
           {envExpanded ? '▶' : '◀'}
         </button>
 
-        <div className="bg-slate-900/95 border border-slate-700/80 p-5 rounded-xl shadow-2xl w-80 backdrop-blur-md">
+        {/* Sidebar Content */}
+        <div className="glass-panel p-5 rounded-xl w-80">
           <h3 className="text-emerald-400 font-bold mb-4 border-b border-slate-800 pb-2 uppercase tracking-widest text-sm flex items-center justify-between">
             <span>Realism Settings</span>
             {damageEnabled && shipDamage > 0 && <span className="text-red-500 text-xs">DMG: {Math.round(shipDamage)}%</span>}
@@ -1457,7 +1466,7 @@ export default function ShipSim() {
               <option value="frigate">Frigate</option>
             </select>
             
-            <div className="bg-slate-900/80 border border-slate-700 rounded p-3 mt-2 text-xs font-mono">
+            <div className="glass-panel-inner rounded-xl p-3 mt-2 text-xs font-mono">
               {shipClass === 'zodiac' && (
                 <>
                   <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">5 meters</span></div>
@@ -1556,7 +1565,7 @@ export default function ShipSim() {
           transformOrigin: 'bottom center',
           display: simMode === 'ship' ? 'flex' : 'none'
         }}
-        className={`absolute bottom-8 left-1/2 bg-slate-800 border-2 border-slate-700 rounded-xl p-6 flex flex-col gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_2px_4px_rgba(255,255,255,0.1),inset_0_-4px_10px_rgba(0,0,0,0.5)] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} z-20`}
+        className={`absolute bottom-8 left-1/2 glass-panel p-6 flex flex-col gap-6 rounded-2xl ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} z-20`}
       >
         {/* Panel Scale Buttons */}
         <div className="absolute top-2 left-10 text-[8px] text-slate-500 font-mono flex items-center gap-1 z-30" onMouseDown={e => e.stopPropagation()}>
@@ -1612,7 +1621,7 @@ export default function ShipSim() {
             >
               {isPaused ? 'RESUME' : 'PAUSE'}
             </button>
-            <div className="flex gap-4 bg-slate-900 p-2 rounded-lg border border-slate-800 shadow-inner">
+            <div className="flex gap-4 glass-panel-inner p-2 rounded-lg">
               <div className="flex flex-col items-center gap-1.5">
                 <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8),inset_0_1px_2px_rgba(255,255,255,0.5)]"></div>
                 <span className="text-[8px] text-slate-400 font-mono">SYS OK</span>
@@ -1661,7 +1670,7 @@ export default function ShipSim() {
 
           {/* Vertical Throttle Lever */}
           <div className="flex flex-col items-center gap-4">
-            <div className="bg-slate-950 border border-slate-700 shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)] rounded p-2 w-24 text-center">
+            <div className="glass-panel-inner p-2 w-24 text-center rounded-lg">
               <span className="text-xs text-slate-500 block mb-1 font-mono">THRUST</span>
               <span className={`text-xl font-mono ${throttle === 0 ? 'text-slate-500' : throttle > 0 ? 'text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]' : 'text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]'}`}>
                 {throttle > 0 ? `+${throttle}` : throttle < 0 ? throttle : '00'}%
@@ -1716,13 +1725,13 @@ export default function ShipSim() {
              <div className="flex gap-4 mb-10 mt-[-10px]">
                <div className="flex flex-col items-center">
                  <span className="text-[10px] text-slate-500 font-mono mb-1 font-bold tracking-widest">SPEED</span>
-                 <div className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 min-w-[85px] text-center shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)]">
+                 <div className="glass-panel-inner px-4 py-2 min-w-[85px] text-center rounded-lg">
                    <span ref={speedTextRef} className="text-xl text-emerald-400 font-mono drop-shadow-[0_0_5px_rgba(52,211,153,0.5)] tracking-wider">0.0 kts</span>
                  </div>
                </div>
                <div className="flex flex-col items-center">
                  <span className="text-[10px] text-slate-500 font-mono mb-1 font-bold tracking-widest">HEADING</span>
-                 <div className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 min-w-[85px] text-center shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)]">
+                 <div className="glass-panel-inner px-4 py-2 min-w-[85px] text-center rounded-lg">
                    <span ref={compassTextRef} className="text-xl text-amber-400 font-mono drop-shadow-[0_0_5px_rgba(251,191,36,0.5)] tracking-wider">000°</span>
                  </div>
                </div>
@@ -1773,7 +1782,7 @@ export default function ShipSim() {
               </button>
             </div>
 
-            <div className="bg-slate-950 border border-slate-700 shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)] rounded p-2 w-32 text-center">
+            <div className="glass-panel-inner p-2 w-32 text-center rounded-lg">
               <span className="text-xs text-slate-500 block mb-1 font-mono">HEADING CMD</span>
               <span className={`text-xl font-mono ${rudder > 0 ? 'text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]' : rudder < 0 ? 'text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]' : 'text-slate-500'}`}>
                 {rudder > 0 ? "STBD " + rudder.toString().padStart(2, '0') : rudder < 0 ? "PORT " + Math.abs(rudder).toString().padStart(2, '0') : '00°'}
