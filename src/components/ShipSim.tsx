@@ -449,18 +449,18 @@ export default function ShipSim() {
       let inertia = 1; // 1 = small, <1 = larger (slower response)
       let turnInertia = 1;
       let visualScale = 1.5625; // (scaled up another 25%)
-      let maxSpeedMultiplier = 1;
+      let maxSpeedMultiplier = 0.35; // ~35 knots default (Patrol Boat)
       
       if (shipClass === 'zodiac') {
         inertia = 1.8; // Very fast acceleration
         turnInertia = 2.0; // Very fast turning
         visualScale = 0.78125; // Small size (scaled up another 25%)
-        maxSpeedMultiplier = 0.45; // ~45 knots
+        maxSpeedMultiplier = 0.40; // ~40 knots
       } else if (shipClass === 'corvette') {
         inertia = 0.5;
         turnInertia = 0.6;
         visualScale = 1.875; // (scaled up another 25%)
-        maxSpeedMultiplier = 0.35; // ~35 knots
+        maxSpeedMultiplier = 0.28; // ~28 knots
       } else if (shipClass === 'frigate') {
         inertia = 0.25;
         turnInertia = 0.3;
