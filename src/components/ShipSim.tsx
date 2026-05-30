@@ -133,22 +133,22 @@ export default function ShipSim() {
       description: 'Depart from the dock, sail around the outer islands through 5 gate checkpoints, and safely return to park in the berth zone.',
       berthRequired: true,
       gates: [
-        { x1: 300, y1: -50, x2: 400, y2: -50, passed: false }, // Outward Gate
-        { x1: 50, y1: -350, x2: 150, y2: -350, passed: false }, // North-West Channel
-        { x1: -150, y1: 150, x2: -150, y2: 250, passed: false }, // West Island Pass
-        { x1: 100, y1: 700, x2: 200, y2: 700, passed: false }, // South Return Gate
-        { x1: 380, y1: 300, x2: 480, y2: 300, passed: false } // Final Approach
+        { x1: 250, y1: -50, x2: 450, y2: -50, passed: false }, // Outward Gate
+        { x1: 50, y1: -360, x2: 250, y2: -360, passed: false }, // North-West Channel
+        { x1: -150, y1: 100, x2: -150, y2: 300, passed: false }, // West Island Pass
+        { x1: 50, y1: 700, x2: 250, y2: 700, passed: false }, // South Return Gate
+        { x1: 350, y1: 320, x2: 500, y2: 320, passed: false } // Final Approach
       ]
     },
     {
       id: 'precision_entry',
       name: 'Precision Port Entry',
-      description: 'Depart the dock, complete a slalom through a tight double-island channel, and return to the berth.',
+      description: 'Depart the dock, complete a slalom through a wide double-island channel, and return to the berth.',
       berthRequired: true,
       gates: [
-        { x1: 250, y1: -150, x2: 350, y2: -100, passed: false },
-        { x1: -50, y1: 100, x2: 50, y2: 50, passed: false },
-        { x1: 200, y1: 400, x2: 300, y2: 350, passed: false }
+        { x1: 300, y1: -80, x2: 480, y2: -80, passed: false }, // Harbor Exit
+        { x1: 50, y1: 150, x2: 250, y2: 150, passed: false }, // Mid-Channel Slalom
+        { x1: 350, y1: 350, x2: 520, y2: 350, passed: false } // Final Alignment
       ]
     }
   ];
