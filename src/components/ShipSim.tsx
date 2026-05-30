@@ -1427,13 +1427,48 @@ export default function ShipSim() {
             <select 
               value={shipClass} 
               onChange={(e) => setShipClass(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-slate-200 font-mono outline-none"
+              className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-slate-200 font-mono outline-none mb-2"
             >
-              <option value="zodiac">Zodiac (Fast, Agile)</option>
-              <option value="patrol">Patrol Boat (Small)</option>
-              <option value="corvette">Corvette (Military Medium)</option>
-              <option value="frigate">Frigate (Military Large)</option>
+              <option value="zodiac">Zodiac</option>
+              <option value="patrol">Patrol Boat</option>
+              <option value="corvette">Corvette</option>
+              <option value="frigate">Frigate</option>
             </select>
+            
+            <div className="bg-slate-900/80 border border-slate-700 rounded p-3 mt-2 text-xs font-mono">
+              {shipClass === 'zodiac' && (
+                <>
+                  <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">5 meters</span></div>
+                  <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">150 HP</span></div>
+                  <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">40+ knots</span></div>
+                  <div className="mt-2 text-slate-300">Fast, highly agile inflatable boat with single outboard motor. Instant response time.</div>
+                </>
+              )}
+              {shipClass === 'patrol' && (
+                <>
+                  <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">24 meters</span></div>
+                  <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">3,000 HP</span></div>
+                  <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">35 knots</span></div>
+                  <div className="mt-2 text-slate-300">Standard patrol craft with twin azimuth thrusters. Highly maneuverable, low inertia.</div>
+                </>
+              )}
+              {shipClass === 'corvette' && (
+                <>
+                  <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">85 meters</span></div>
+                  <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">20,000 HP</span></div>
+                  <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">28 knots</span></div>
+                  <div className="mt-2 text-slate-300">Medium military vessel. Moderate inertia. Equipped with Bow Thruster.</div>
+                </>
+              )}
+              {shipClass === 'frigate' && (
+                <>
+                  <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">135 meters</span></div>
+                  <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">45,000 HP</span></div>
+                  <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">30 knots</span></div>
+                  <div className="mt-2 text-slate-300">Large military vessel. High inertia. Equipped with Bow & Stern Thrusters, and Helipad.</div>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="h-px w-full bg-slate-800 my-2"></div>
