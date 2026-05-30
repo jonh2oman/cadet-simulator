@@ -705,7 +705,7 @@ export default function ShipSim() {
       const camY = controlsRef.current.simMode === 'heli' ? heliState.current.y + 150 : state.y;
 
       // Draw dynamic multi-layered ocean waves
-      const time = Date.now() / 1500;
+      const waveTime = Date.now() / 1500;
       
       const drawWaveLayer = (size: number, opacity: number, speed: number, color: string, phase: number, shiftAmnt: number) => {
         ctx.strokeStyle = color;
@@ -716,7 +716,7 @@ export default function ShipSim() {
         ctx.beginPath();
         for (let y = -offsetY - size; y < canvas.height + size; y += size * 0.6) {
           for (let x = -offsetX - size; x < canvas.width + size; x += size) {
-            let shift = Math.sin(time + phase + (x/size) + (y/size)) * shiftAmnt;
+            let shift = Math.sin(waveTime + phase + (x/size) + (y/size)) * shiftAmnt;
             if (x === -offsetX - size) {
               ctx.moveTo(x, y + shift);
             } else {
