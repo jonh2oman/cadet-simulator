@@ -712,12 +712,12 @@ export default function ShipSim() {
       const waveSize = 100;
       const waveOffsetX = state.x % waveSize;
       const waveOffsetY = state.y % waveSize;
-      const time = Date.now() / 1000;
+      const waveTime = Date.now() / 1000;
 
       for (let y = -waveOffsetY - waveSize; y < canvas.height + waveSize; y += waveSize * 0.5) {
         ctx.beginPath();
         for (let x = -waveOffsetX - waveSize; x < canvas.width + waveSize; x += waveSize) {
-          const shift = Math.sin((x + y + time * 50) * 0.02) * 10;
+          const shift = Math.sin((x + y + waveTime * 50) * 0.02) * 10;
           if (x === -waveOffsetX - waveSize) {
             ctx.moveTo(x, y + shift);
           } else {
