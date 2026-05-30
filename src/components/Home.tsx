@@ -119,6 +119,11 @@ export default function Home({ onNavigate, onOpenHelp }: HomeProps) {
         </button>
 
       </div>
+
+      {/* Version Number Footer */}
+      <div className="text-center z-10 text-xs text-slate-600 font-bold uppercase tracking-widest pt-4 pb-8">
+        Nautical Navigator • v1.2.0
+      </div>
     </div>
   );
 }
