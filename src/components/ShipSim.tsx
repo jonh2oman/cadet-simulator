@@ -105,6 +105,138 @@ export default function ShipSim() {
     { id: '2', type: 'starboard', x: 200, y: 0 }, // Red
   ]);
 
+  // Custom Buoy State
+  const customBuoysRef = useRef<{ x: number; y: number; color: 'yellow' | 'green' | 'red' }[]>([]);
+  const [customBuoyColor, setCustomBuoyColor] = useState<'yellow' | 'green' | 'red'>('yellow');
+
+  // Pre-made Courses
+  interface CourseGate {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    passed: boolean;
+  }
+
+  interface Course {
+    id: string;
+    name: string;
+    description: string;
+    gates: CourseGate[];
+    berthRequired: boolean;
+  }
+
+  const PREMADE_COURSES: Course[] = [
+    {
+      id: 'archipelago_slalom',
+      name: 'Archipelago Slalom',
+      description: 'Depart from the dock, sail around the outer islands through 5 gate checkpoints, and safely return to park in the berth zone.',
+      berthRequired: true,
+      gates: [
+        { x1: 300, y1: -50, x2: 400, y2: -50, passed: false }, // Outward Gate
+        { x1: 50, y1: -350, x2: 150, y2: -350, passed: false }, // North-West Channel
+        { x1: -150, y1: 150, x2: -150, y2: 250, passed: false }, // West Island Pass
+        { x1: 100, y1: 700, x2: 200, y2: 700, passed: false }, // South Return Gate
+        { x1: 380, y1: 300, x2: 480, y2: 300, passed: false } // Final Approach
+      ]
+    },
+    {
+      id: 'precision_entry',
+      name: 'Precision Port Entry',
+      description: 'Depart the dock, complete a slalom through a tight double-island channel, and return to the berth.',
+      berthRequired: true,
+      gates: [
+        { x1: 250, y1: -150, x2: 350, y2: -100, passed: false },
+        { x1: -50, y1: 100, x2: 50, y2: 50, passed: false },
+        { x1: 200, y1: 400, x2: 300, y2: 350, passed: false }
+      ]
+    }
+  ];
+
+  const [activeCourse, setActiveCourse] = useState<Course | null>(null);
+  const activeCourseRef = useRef<Course | null>(null);
+  const courseStartTimeRef = useRef<number | null>(null);
+  const [courseElapsedTime, setCourseElapsedTime] = useState<number>(0);
+  const [courseCompleted, setCourseCompleted] = useState<boolean>(false);
+  const courseCompletedRef = useRef<boolean>(false);
+  const prevPosRef = useRef({ x: 460, y: 150 });
+
+  const playBeep = (freq = 800, duration = 0.15) => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      oscillator.frequency.value = freq;
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+      
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + duration);
+    } catch (e) {
+      console.error('Audio error', e);
+    }
+  };
+
+  const startCourse = (course: Course | null) => {
+    const state = shipState.current;
+    state.x = 460;
+    state.y = 150;
+    state.heading = 0;
+    state.speed = 0;
+    prevPosRef.current = { x: 460, y: 150 };
+    setThrottle(0);
+    setRudder(0);
+    setBowThruster(0);
+    setSternThruster(0);
+    setIsDocked(false);
+
+    if (course) {
+      const clonedCourse = {
+        ...course,
+        gates: course.gates.map(g => ({ ...g, passed: false }))
+      };
+      setActiveCourse(clonedCourse);
+      activeCourseRef.current = clonedCourse;
+      const now = performance.now();
+      courseStartTimeRef.current = now;
+      setCourseElapsedTime(0);
+      setCourseCompleted(false);
+      courseCompletedRef.current = false;
+      playBeep(600, 0.3);
+    } else {
+      setActiveCourse(null);
+      activeCourseRef.current = null;
+      courseStartTimeRef.current = null;
+      setCourseCompleted(false);
+      courseCompletedRef.current = false;
+    }
+  };
+
+  // Check segment intersection
+  const checkIntersection = (
+    p0_x: number, p0_y: number, p1_x: number, p1_y: number,
+    p2_x: number, p2_y: number, p3_x: number, p3_y: number
+  ) => {
+    const s1_x = p1_x - p0_x;
+    const s1_y = p1_y - p0_y;
+    const s2_x = p3_x - p2_x;
+    const s2_y = p3_y - p2_y;
+
+    const s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / (-s2_x * s1_y + s1_x * s2_y);
+    const t = (s2_x * (p0_y - p2_y) - s2_y * (p0_x - p2_x)) / (-s2_x * s1_y + s1_x * s2_y);
+
+    if (s >= 0 && s <= 1 && t >= 0 && t <= 1) {
+      return true;
+    }
+    return false;
+  };
+
   // Engine & System controls
   const [throttle, setThrottle] = useState(0); // -100 to 100
   const [rudder, setRudder] = useState(0); // -45 to 45
@@ -634,6 +766,46 @@ export default function ShipSim() {
         state.y = newY;
       }
 
+      // Track course gate crossing
+      const prevX = prevPosRef.current.x;
+      const prevY = prevPosRef.current.y;
+      prevPosRef.current = { x: state.x, y: state.y };
+
+      const course = activeCourseRef.current;
+      if (course && !courseCompletedRef.current) {
+        const nextGateIndex = course.gates.findIndex(g => !g.passed);
+        if (nextGateIndex !== -1) {
+          const gate = course.gates[nextGateIndex];
+          if (checkIntersection(prevX, prevY, state.x, state.y, gate.x1, gate.y1, gate.x2, gate.y2)) {
+            gate.passed = true;
+            playBeep(880, 0.2);
+            setActiveCourse({ ...course });
+          }
+        } else {
+          // All gates passed, check if berthing is needed
+          if (course.berthRequired) {
+            if (controlsRef.current.isDocked) {
+              setCourseCompleted(true);
+              courseCompletedRef.current = true;
+              playBeep(1000, 0.15);
+              setTimeout(() => playBeep(1300, 0.3), 150);
+            }
+          } else {
+            setCourseCompleted(true);
+            courseCompletedRef.current = true;
+            playBeep(1000, 0.15);
+            setTimeout(() => playBeep(1300, 0.3), 150);
+          }
+        }
+
+        // Track elapsed time
+        const now = performance.now();
+        if (courseStartTimeRef.current !== null) {
+          const elapsed = (now - courseStartTimeRef.current) / 1000;
+          setCourseElapsedTime(elapsed);
+        }
+      }
+
       // No more wrap around screen, the world is endless (or bounded by islands)
 
       // Add wake particles if moving
@@ -825,6 +997,146 @@ export default function ShipSim() {
         
         ctx.restore();
       });
+
+      // Draw custom laid buoys
+      customBuoysRef.current.forEach((buoy) => {
+        const screenX = buoy.x - camX + canvas.width / 2;
+        const screenY = buoy.y - camY + canvas.height / 2;
+
+        ctx.save();
+        ctx.translate(screenX, screenY);
+        
+        const pulse = Math.sin(Date.now() / 200) * 4 + 8;
+        ctx.strokeStyle = buoy.color === 'yellow' ? 'rgba(234, 179, 8, 0.4)' : buoy.color === 'green' ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, pulse, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if (buoy.color === 'green') {
+          ctx.fillStyle = '#22c55e';
+          ctx.fillRect(-6, -8, 12, 16);
+          ctx.strokeStyle = '#166534';
+          ctx.strokeRect(-6, -8, 12, 16);
+        } else if (buoy.color === 'red') {
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.moveTo(0, -12);
+          ctx.lineTo(8, 8);
+          ctx.lineTo(-8, 8);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#991b1b';
+          ctx.stroke();
+        } else {
+          // Yellow Special Mark
+          ctx.fillStyle = '#eab308';
+          ctx.beginPath();
+          ctx.arc(0, 0, 7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#a16207';
+          ctx.stroke();
+          // X topmark
+          ctx.strokeStyle = '#eab308';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(-3, -11); ctx.lineTo(3, -7);
+          ctx.moveTo(3, -11); ctx.lineTo(-3, -7);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      });
+
+      // Draw active course gates
+      if (course) {
+        course.gates.forEach((gate, idx) => {
+          const x1 = gate.x1 - camX + canvas.width / 2;
+          const y1 = gate.y1 - camY + canvas.height / 2;
+          const x2 = gate.x2 - camX + canvas.width / 2;
+          const y2 = gate.y2 - camY + canvas.height / 2;
+
+          const isNext = course.gates.findIndex(g => !g.passed) === idx;
+
+          ctx.save();
+          if (gate.passed) {
+            ctx.strokeStyle = 'rgba(34, 197, 94, 0.6)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+          } else {
+            ctx.strokeStyle = isNext ? 'rgba(234, 179, 8, 0.8)' : 'rgba(148, 163, 184, 0.3)';
+            ctx.lineWidth = isNext ? 3 : 1.5;
+            if (isNext) {
+              ctx.setLineDash([8, 6]);
+              ctx.lineDashOffset = -Date.now() / 100;
+            } else {
+              ctx.setLineDash([4, 4]);
+            }
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+          }
+          ctx.restore();
+
+          const drawGateBuoy = (bx: number, by: number, type: 'port' | 'starboard') => {
+            ctx.save();
+            ctx.translate(bx, by);
+            
+            const glowRadius = Math.sin(Date.now() / 150) * 5 + 10;
+            ctx.shadowBlur = gate.passed ? 8 : (isNext ? glowRadius : 0);
+            ctx.shadowColor = type === 'port' ? '#22c55e' : '#ef4444';
+
+            if (type === 'port') {
+              ctx.fillStyle = '#22c55e';
+              ctx.fillRect(-8, -10, 16, 20);
+              ctx.strokeStyle = '#166534';
+              ctx.strokeRect(-8, -10, 16, 20);
+              
+              if (gate.passed || (Date.now() % 1000 < 500)) {
+                ctx.fillStyle = '#4ade80';
+                ctx.beginPath();
+                ctx.arc(0, -13, 3, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            } else {
+              ctx.fillStyle = '#ef4444';
+              ctx.beginPath();
+              ctx.moveTo(0, -15);
+              ctx.lineTo(10, 10);
+              ctx.lineTo(-10, 10);
+              ctx.closePath();
+              ctx.fill();
+              ctx.strokeStyle = '#991b1b';
+              ctx.stroke();
+
+              if (gate.passed || (Date.now() % 1000 < 500)) {
+                ctx.fillStyle = '#f87171';
+                ctx.beginPath();
+                ctx.arc(0, -18, 3, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            }
+
+            ctx.restore();
+          };
+
+          drawGateBuoy(x1, y1, 'port');
+          drawGateBuoy(x2, y2, 'starboard');
+
+          ctx.save();
+          const midX = (x1 + x2) / 2;
+          const midY = (y1 + y2) / 2;
+          ctx.fillStyle = gate.passed ? '#4ade80' : (isNext ? '#f59e0b' : '#94a3b8');
+          ctx.font = 'bold 11px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(`GATE ${idx + 1}${gate.passed ? ' [OK]' : (isNext ? ' [TARGET]' : '')}`, midX, midY - 12);
+          ctx.restore();
+        });
+      }
 
       // Draw the dock and mainland (relative to ship)
       const dockX = 500 - camX + canvas.width / 2;
@@ -1515,6 +1827,88 @@ export default function ShipSim() {
 
           <div className="h-px w-full bg-slate-800 my-2"></div>
 
+          {/* Custom Buoy Laying */}
+          <div>
+            <div className="text-xs text-slate-400 font-mono mb-2">CUSTOM BUOY LAYING</div>
+            <div className="flex gap-2 mb-2">
+              <select
+                value={customBuoyColor}
+                onChange={(e) => setCustomBuoyColor(e.target.value as any)}
+                className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-xs text-slate-200 font-mono outline-none"
+              >
+                <option value="yellow">Special Mark (Yellow)</option>
+                <option value="green">Port Hand (Green)</option>
+                <option value="red">Starboard Hand (Red)</option>
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => {
+                  const state = shipState.current;
+                  customBuoysRef.current.push({
+                    x: state.x,
+                    y: state.y,
+                    color: customBuoyColor
+                  });
+                  playBeep(523, 0.1);
+                }}
+                className="flex-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-mono text-xs rounded transition-all active:scale-95 shadow-lg shadow-amber-950/20"
+              >
+                LAY BUOY
+              </button>
+              <button 
+                onClick={() => {
+                  customBuoysRef.current = [];
+                  playBeep(330, 0.1);
+                }}
+                className="flex-1 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 font-mono text-xs rounded transition-all active:scale-95 border border-slate-600"
+              >
+                CLEAR ALL
+              </button>
+            </div>
+          </div>
+
+          <div className="h-px w-full bg-slate-800 my-2"></div>
+
+          {/* Training Courses */}
+          <div>
+            <div className="text-xs text-slate-400 font-mono mb-2">TRAINING COURSES</div>
+            <select 
+              value={activeCourse ? activeCourse.id : ''} 
+              onChange={(e) => {
+                const val = e.target.value;
+                const selected = PREMADE_COURSES.find(c => c.id === val);
+                startCourse(selected || null);
+              }}
+              className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-slate-200 font-mono outline-none mb-2"
+            >
+              <option value="">Free Sailing (No Course)</option>
+              {PREMADE_COURSES.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            {activeCourse && (
+              <div className="glass-panel-inner rounded-xl p-3 mt-2 text-xs font-mono space-y-1.5">
+                <div className="text-slate-300 font-bold">{activeCourse.name}</div>
+                <div className="text-slate-400 text-[10px] leading-normal">{activeCourse.description}</div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Progress:</span>
+                  <span className="text-emerald-400 font-bold">
+                    {activeCourse.gates.filter(g => g.passed).length} / {activeCourse.gates.length} Gates
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Time Elapsed:</span>
+                  <span className="text-amber-400 font-bold">
+                    {Math.floor(courseElapsedTime / 60)}m {Math.floor(courseElapsedTime % 60)}s
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="h-px w-full bg-slate-800 my-2"></div>
+
           {/* Port and Damage Settings */}
           <div>
             <div className="text-xs text-slate-400 font-mono mb-2">SCENARIO OPTIONS</div>
@@ -2054,6 +2448,45 @@ export default function ShipSim() {
                 className="bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 px-10 rounded-full transition-all shadow-[0_0_15px_rgba(217,119,6,0.4)] hover:shadow-[0_0_25px_rgba(217,119,6,0.6)] hover:-translate-y-0.5 uppercase tracking-widest text-sm active:scale-95"
               >
                 Take the Helm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Course Completed Modal */}
+      {courseCompleted && activeCourse && (
+        <div className="absolute inset-0 z-[110] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900/90 border border-emerald-500 shadow-[0_0_50px_rgba(16,185,129,0.4)] rounded-2xl max-w-md w-full p-8 relative text-center">
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-24 h-24 bg-gradient-to-tr from-emerald-400 to-teal-500 rounded-full flex items-center justify-center shadow-lg border-4 border-slate-900">
+              <span className="text-4xl">🏆</span>
+            </div>
+            <h2 className="text-3xl font-bold text-white mt-12 mb-2 tracking-wide">COURSE COMPLETED!</h2>
+            <p className="text-slate-400 text-sm mb-6">Excellent seamanship, Cadet!</p>
+            
+            <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl shadow-inner mb-6 text-left font-mono text-sm space-y-2">
+              <div className="flex justify-between"><span className="text-slate-400">Course:</span> <span className="text-slate-200">{activeCourse.name}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">Time Taken:</span> <span className="text-amber-400">{Math.floor(courseElapsedTime / 60)}m {Math.floor(courseElapsedTime % 60)}s</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">Vessel Class:</span> <span className="text-emerald-400 uppercase">{shipClass}</span></div>
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => {
+                  const selected = PREMADE_COURSES.find(c => c.id === activeCourse.id);
+                  startCourse(selected || null);
+                }}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] uppercase tracking-wider text-xs active:scale-95"
+              >
+                Retry Course
+              </button>
+              <button 
+                onClick={() => {
+                  startCourse(null);
+                }}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-xl transition-all border border-slate-700 uppercase tracking-wider text-xs active:scale-95"
+              >
+                Free Sailing
               </button>
             </div>
           </div>
