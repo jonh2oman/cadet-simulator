@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import ControlPortal from './ControlPortal';
 
 const HorizontalThrusterLever = ({ label, value, onChange }: { label: string, value: number, onChange: (val: number) => void }) => {
   const [isDragging, setIsDragging] = useState(false);
@@ -160,6 +161,7 @@ export default function ShipSim() {
   const [courseCompleted, setCourseCompleted] = useState<boolean>(false);
   const courseCompletedRef = useRef<boolean>(false);
   const prevPosRef = useRef({ x: 460, y: 150 });
+  const [isControlsPoppedOut, setIsControlsPoppedOut] = useState<boolean>(false);
 
   const playBeep = (freq = 800, duration = 0.15) => {
     try {
@@ -1958,30 +1960,51 @@ export default function ShipSim() {
 
         </div>
       </div>
+      </div>
 
       {/* Modern Ship Control Panel */}
-      <div 
-        onMouseDown={handleMouseDown}
-        style={{ 
-          transform: `translate(calc(-50% + ${panelPos.x}px), ${panelPos.y}px) scale(${panelScale})`,
-          transformOrigin: 'bottom center',
-          display: simMode === 'ship' ? 'flex' : 'none'
-        }}
-        className={`absolute bottom-8 left-1/2 glass-panel p-6 flex flex-col gap-6 rounded-2xl ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} z-20`}
-      >
-        {/* Panel Scale Buttons */}
-        <div className="absolute top-2 left-10 text-[8px] text-slate-500 font-mono flex items-center gap-1 z-30" onMouseDown={e => e.stopPropagation()}>
-          SCALE:
-          {[{label: 'XS', val: 0.5}, {label: 'S', val: 0.75}, {label: 'M', val: 1.0}, {label: 'L', val: 1.25}, {label: 'XL', val: 1.5}].map(sz => (
-            <button
-              key={sz.label}
-              onClick={() => setPanelScale(sz.val)}
-              className={`px-1.5 py-0.5 rounded ${panelScale === sz.val ? 'bg-amber-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-            >
-              {sz.label}
-            </button>
-          ))}
-        </div>
+      {(() => {
+        const controlPanel = (
+          <div 
+            onMouseDown={isControlsPoppedOut ? undefined : handleMouseDown}
+            style={{ 
+              transform: isControlsPoppedOut ? 'scale(1)' : `translate(calc(-50% + ${panelPos.x}px), ${panelPos.y}px) scale(${panelScale})`,
+              transformOrigin: 'bottom center',
+              display: simMode === 'ship' ? 'flex' : 'none',
+              position: isControlsPoppedOut ? 'relative' : 'absolute',
+              left: isControlsPoppedOut ? 'auto' : '50%',
+              bottom: isControlsPoppedOut ? 'auto' : '2rem'
+            }}
+            className={`glass-panel p-6 flex flex-col gap-6 rounded-2xl ${isControlsPoppedOut ? '' : (isDragging ? 'cursor-grabbing' : 'cursor-grab')} z-20`}
+          >
+            {/* Panel Scale Buttons */}
+            <div className="absolute top-2 left-10 text-[8px] text-slate-500 font-mono flex items-center gap-1.5 z-30" onMouseDown={e => e.stopPropagation()}>
+              {!isControlsPoppedOut ? (
+                <>
+                  SCALE:
+                  {[{label: 'XS', val: 0.5}, {label: 'S', val: 0.75}, {label: 'M', val: 1.0}, {label: 'L', val: 1.25}, {label: 'XL', val: 1.5}].map(sz => (
+                    <button
+                      key={sz.label}
+                      onClick={() => setPanelScale(sz.val)}
+                      className={`px-1.5 py-0.5 rounded ${panelScale === sz.val ? 'bg-amber-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                    >
+                      {sz.label}
+                    </button>
+                  ))}
+                  <span className="text-slate-600 mx-1">|</span>
+                  <button
+                    onClick={() => setIsControlsPoppedOut(true)}
+                    className="px-2 py-0.5 bg-blue-600 text-white hover:bg-blue-500 rounded font-bold uppercase tracking-wider text-[8px]"
+                  >
+                    Pop Out Console
+                  </button>
+                </>
+              ) : (
+                <span className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">
+                  🖥️ External Control Deck Active
+                </span>
+              )}
+            </div>
 
         {/* Panel details: Screws */}
         <div className="absolute top-3 left-3 w-2.5 h-2.5 rounded-full bg-slate-600 shadow-[inset_0_1px_2px_rgba(0,0,0,0.8),0_1px_0_rgba(255,255,255,0.2)] flex items-center justify-center"><div className="w-full h-0.5 bg-slate-800 rotate-45"></div></div>
@@ -2286,7 +2309,18 @@ export default function ShipSim() {
           </div>
         </div>
         </div>
-      </div>
+      );
+
+      if (isControlsPoppedOut) {
+        return (
+          <ControlPortal onClose={() => setIsControlsPoppedOut(false)}>
+            {controlPanel}
+          </ControlPortal>
+        );
+      }
+
+      return controlPanel;
+    })()}
 
       {/* Docking Button Overlays */}
       {isDocked && (
