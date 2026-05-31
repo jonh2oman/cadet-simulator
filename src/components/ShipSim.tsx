@@ -303,7 +303,7 @@ export default function ShipSim() {
     altitude: 0, speed: 0, cyclicX: 0, cyclicY: 0
   });
 
-  const particlesRef = useRef<{x: number, y: number, life: number}[]>([]);
+  const particlesRef = useRef<{x: number, y: number, life: number, type?: 'wake' | 'smoke', vx?: number, vy?: number}[]>([]);
 
   useEffect(() => {
     controlsRef.current = {
@@ -825,9 +825,8 @@ export default function ShipSim() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat) return;
-
       if (e.key === 'h' || e.key === 'H') {
+        if (e.repeat) return;
         e.preventDefault();
         startHorn();
         return;
@@ -884,6 +883,7 @@ export default function ShipSim() {
 
     let animationFrameId: number;
     let lastTime = performance.now();
+    let frameCount = 0;
 
     const render = (time: number) => {
       if (isPausedRef.current) {
@@ -892,12 +892,43 @@ export default function ShipSim() {
         return;
       }
 
+      frameCount++;
+
       const dt = (time - lastTime) / 1000;
       lastTime = time;
 
       // Update physics
       const state = shipState.current;
       const { throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, windSpeed, windDir, currentSpeed, currentDir, shipClass } = controlsRef.current;
+      
+      // Update engine sound continuously based on actual underway speed
+      if (audioCtxRef.current && engineNodeRef.current && engineSoundOn) {
+        const speedVal = simMode === 'heli' ? heliState.current.speed : state.speed;
+        const maxSpeed = simMode === 'heli' ? 30 : 15;
+        const speedRatio = Math.min(1.0, Math.abs(speedVal) / maxSpeed);
+
+        const baseFreq = simMode === 'heli' 
+          ? (100 + speedRatio * 80 + (heliState.current.altitude / 100) * 40)
+          : (shipClass === 'zodiac' ? 55 : shipClass === 'patrol' ? 45 : shipClass === 'corvette' ? 35 : 28);
+          
+        const { oscillators, gainNode } = engineNodeRef.current;
+        if (simMode === 'heli') {
+          oscillators[0].frequency.setTargetAtTime(baseFreq, audioCtxRef.current.currentTime, 0.1);
+          oscillators[1].frequency.setTargetAtTime(8 + speedRatio * 6, audioCtxRef.current.currentTime, 0.1);
+          const targetGain = 0.08 + speedRatio * 0.08 + (heliState.current.altitude / 100) * 0.04;
+          gainNode.gain.setTargetAtTime(targetGain, audioCtxRef.current.currentTime, 0.1);
+        } else {
+          // Average of throttle input and actual underway speed to simulate engine load
+          const absThrottle = Math.abs(throttle) / 100;
+          const loadRatio = (speedRatio + absThrottle) / 2;
+          
+          oscillators[0].frequency.setTargetAtTime(baseFreq + loadRatio * baseFreq * 1.5, audioCtxRef.current.currentTime, 0.1);
+          oscillators[1].frequency.setTargetAtTime((baseFreq + loadRatio * baseFreq * 1.5) * 1.02, audioCtxRef.current.currentTime, 0.1);
+          
+          const targetGain = 0.04 + loadRatio * 0.08;
+          gainNode.gain.setTargetAtTime(targetGain, audioCtxRef.current.currentTime, 0.1);
+        }
+      }
       
       // Class physics modifiers
       let inertia = 1; // 1 = small, <1 = larger (slower response)
@@ -1140,6 +1171,44 @@ export default function ShipSim() {
         }
       }
 
+      // Emit smoke from ship funnels/exhaust stacks
+      if (simMode === 'ship' && frameCount % 6 === 0) {
+        const windAngle = (windDir + 180) * (Math.PI / 180);
+        const windVel = windSpeed * 0.15;
+        const windVx = Math.cos(windAngle) * windVel;
+        const windVy = Math.sin(windAngle) * windVel;
+
+        const cosH = Math.cos(state.heading);
+        const sinH = Math.sin(state.heading);
+
+        const spawnSmoke = (localX: number, localY: number) => {
+          const worldX = state.x + (localX * cosH - localY * sinH);
+          const worldY = state.y + (localX * sinH + localY * cosH);
+          
+          const exhaustVx = -cosH * (4 + Math.abs(state.speed) * 0.3) + windVx;
+          const exhaustVy = -sinH * (4 + Math.abs(state.speed) * 0.3) + windVy;
+
+          particlesRef.current.push({
+            x: worldX,
+            y: worldY,
+            vx: exhaustVx,
+            vy: exhaustVy,
+            life: 2.0,
+            type: 'smoke'
+          });
+        };
+
+        if (shipClass === 'corvette') {
+          spawnSmoke(2 * visualScale, 0);
+        } else if (shipClass === 'frigate') {
+          spawnSmoke(8 * visualScale, 0);
+          spawnSmoke(-4 * visualScale, 0);
+        } else if (shipClass === 'patrol') {
+          spawnSmoke(-8 * visualScale, -2 * visualScale);
+          spawnSmoke(-8 * visualScale, 2 * visualScale);
+        }
+      }
+
       // Helicopter Physics (Simplified for Sea Cadets)
       if (controlsRef.current.simMode === 'heli') {
          const hState = heliState.current;
@@ -1261,14 +1330,33 @@ export default function ShipSim() {
         ctx.restore();
       });
 
-      // Draw wake particles
+      // Draw particles (wake and stack smoke)
       particlesRef.current = particlesRef.current.filter(p => p.life > 0);
+      
+      const windAngleForUpdate = (windDir + 180) * (Math.PI / 180);
+      const windVelForUpdate = windSpeed * 0.2;
+      const windVx = Math.cos(windAngleForUpdate) * windVelForUpdate;
+      const windVy = Math.sin(windAngleForUpdate) * windVelForUpdate;
+
       particlesRef.current.forEach(p => {
         p.life -= dt;
-        ctx.fillStyle = `rgba(255, 255, 255, ${p.life * 0.3})`;
-        ctx.beginPath();
-        ctx.arc(p.x - camX + canvas.width / 2, p.y - camY + canvas.height / 2, 2 + (1.5 - p.life) * 2, 0, Math.PI * 2);
-        ctx.fill();
+        if (p.type === 'smoke') {
+          p.x += (p.vx || 0) * dt + windVx * dt * 25;
+          p.y += (p.vy || 0) * dt + windVy * dt * 25;
+
+          if (p.vx) p.vx *= 0.95;
+          if (p.vy) p.vy *= 0.95;
+
+          ctx.fillStyle = `rgba(148, 163, 184, ${p.life * 0.12})`;
+          ctx.beginPath();
+          ctx.arc(p.x - camX + canvas.width / 2, p.y - camY + canvas.height / 2, 4 + (2.0 - p.life) * 14, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = `rgba(255, 255, 255, ${p.life * 0.3})`;
+          ctx.beginPath();
+          ctx.arc(p.x - camX + canvas.width / 2, p.y - camY + canvas.height / 2, 2 + (1.5 - p.life) * 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
       });
 
       // Draw buoys relative to ship (camera centered on ship)
