@@ -162,6 +162,7 @@ export default function ShipSim() {
   const courseCompletedRef = useRef<boolean>(false);
   const prevPosRef = useRef({ x: 460, y: 150 });
   const [isControlsPoppedOut, setIsControlsPoppedOut] = useState<boolean>(false);
+  const [isSettingsPoppedOut, setIsSettingsPoppedOut] = useState<boolean>(false);
 
   const playBeep = (freq = 800, duration = 0.15) => {
     try {
@@ -1675,6 +1676,276 @@ export default function ShipSim() {
     };
   }, []);
 
+  const settingsPanelJSX = (isPopped: boolean) => (
+    <div className="glass-panel p-5 rounded-xl w-80 max-h-[85vh] overflow-y-auto custom-scrollbar">
+      <h3 className="text-emerald-400 font-bold mb-4 border-b border-slate-800 pb-2 uppercase tracking-widest text-sm flex items-center justify-between sticky top-0 bg-slate-900/60 backdrop-blur-md z-10">
+        <span>Realism Settings</span>
+        <div className="flex items-center gap-1.5">
+          {isPopped ? (
+            <button
+              onClick={() => setIsSettingsPoppedOut(false)}
+              className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-[9px] uppercase font-mono tracking-wider transition-all"
+              title="Dock settings panel"
+            >
+              Dock
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsSettingsPoppedOut(true)}
+              className="px-1.5 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[9px] uppercase font-mono tracking-wider transition-all"
+              title="Pop out settings panel"
+            >
+              Pop Out
+            </button>
+          )}
+          {damageEnabled && shipDamage > 0 && <span className="text-red-500 text-[10px]">DMG: {Math.round(shipDamage)}%</span>}
+        </div>
+      </h3>
+      
+      <div className="space-y-4">
+        {/* Wind Speed */}
+        <div>
+          <div className="flex justify-between text-xs text-slate-400 font-mono mb-1">
+            <span>WIND SPEED</span>
+            <span className="text-amber-400">{windSpeed} KTS</span>
+          </div>
+          <input type="range" min="0" max="30" value={windSpeed} onChange={(e) => setWindSpeed(parseInt(e.target.value))} className="w-full accent-amber-500" />
+        </div>
+
+        {/* Wind Direction */}
+        <div>
+          <div className="flex justify-between text-xs text-slate-400 font-mono mb-1">
+            <span>WIND DIR (FROM)</span>
+            <span className="text-amber-400">{windDir}°</span>
+          </div>
+          <input type="range" min="0" max="359" value={windDir} onChange={(e) => setWindDir(parseInt(e.target.value))} className="w-full accent-amber-500" />
+        </div>
+
+        <div className="h-px w-full bg-slate-800 my-2"></div>
+
+        {/* Current Speed */}
+        <div>
+          <div className="flex justify-between text-xs text-slate-400 font-mono mb-1">
+            <span>CURRENT (SET)</span>
+            <span className="text-blue-400">{currentSpeed} KTS</span>
+          </div>
+          <input type="range" min="0" max="5" step="0.5" value={currentSpeed} onChange={(e) => setCurrentSpeed(parseFloat(e.target.value))} className="w-full accent-blue-500" />
+        </div>
+
+        {/* Current Direction */}
+        <div>
+          <div className="flex justify-between text-xs text-slate-400 font-mono mb-1">
+            <span>CURRENT DIR (TOWARDS)</span>
+            <span className="text-blue-400">{currentDir}°</span>
+          </div>
+          <input type="range" min="0" max="359" value={currentDir} onChange={(e) => setCurrentDir(parseInt(e.target.value))} className="w-full accent-blue-500" />
+        </div>
+
+        <div className="h-px w-full bg-slate-800 my-2"></div>
+
+        {/* Jetty Select */}
+        <div>
+          <div className="text-xs text-slate-400 font-mono mb-1">JETTY GEOMETRY</div>
+          <select 
+            value={jettyType} 
+            onChange={(e) => setJettyType(e.target.value)}
+            className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-slate-200 font-mono outline-none"
+          >
+            <option value="straight">Straight Wharf</option>
+            <option value="l-shape">L-Shaped Pier</option>
+            <option value="u-shape">U-Shaped Slip</option>
+            <option value="t-shape">T-Shaped Pier</option>
+          </select>
+        </div>
+
+        {/* Ship Class Select */}
+        <div className="pt-2">
+          <div className="text-xs text-slate-400 font-mono mb-1">VESSEL CLASS</div>
+          <select 
+            value={shipClass} 
+            onChange={(e) => setShipClass(e.target.value)}
+            className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-slate-200 font-mono outline-none mb-2"
+          >
+            <option value="zodiac">Zodiac</option>
+            <option value="patrol">Patrol Boat</option>
+            <option value="corvette">Corvette</option>
+            <option value="frigate">Frigate</option>
+          </select>
+          
+          <div className="glass-panel-inner rounded-xl p-3 mt-2 text-xs font-mono">
+            {shipClass === 'zodiac' && (
+              <>
+                <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">5 meters</span></div>
+                <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">150 HP</span></div>
+                <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">40+ knots</span></div>
+                <div className="mt-2 text-slate-300">Fast, highly agile inflatable boat with single outboard motor. Instant response time.</div>
+              </>
+            )}
+            {shipClass === 'patrol' && (
+              <>
+                <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">24 meters</span></div>
+                <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">3,000 HP</span></div>
+                <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">35 knots</span></div>
+                <div className="mt-2 text-slate-300">Standard patrol craft with twin azimuth thrusters. Highly maneuverable, low inertia.</div>
+              </>
+            )}
+            {shipClass === 'corvette' && (
+              <>
+                <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">85 meters</span></div>
+                <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">20,000 HP</span></div>
+                <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">28 knots</span></div>
+                <div className="mt-2 text-slate-300">Medium military vessel. Moderate inertia. Equipped with Bow Thruster.</div>
+              </>
+            )}
+            {shipClass === 'frigate' && (
+              <>
+                <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">135 meters</span></div>
+                <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">45,000 HP</span></div>
+                <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">30 knots</span></div>
+                <div className="mt-2 text-slate-300">Large military vessel. High inertia. Equipped with Bow & Stern Thrusters, and Helipad.</div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="h-px w-full bg-slate-800 my-2"></div>
+
+        {/* Buoy Toggles */}
+        <div>
+          <div className="text-xs text-slate-400 font-mono mb-2">BUOYS (DRAG ON CANVAS TO MOVE)</div>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+              <input type="checkbox" checked={showPortBuoy} onChange={e => setShowPortBuoy(e.target.checked)} className="accent-emerald-500 w-4 h-4" />
+              Port (Green)
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+              <input type="checkbox" checked={showStbdBuoy} onChange={e => setShowStbdBuoy(e.target.checked)} className="accent-red-500 w-4 h-4" />
+              Stbd (Red)
+            </label>
+          </div>
+        </div>
+
+        <div className="h-px w-full bg-slate-800 my-2"></div>
+
+        {/* Custom Buoy Laying */}
+        <div>
+          <div className="text-xs text-slate-400 font-mono mb-2">CUSTOM BUOY LAYING</div>
+          <div className="flex gap-2 mb-2">
+            <select
+              value={customBuoyColor}
+              onChange={(e) => setCustomBuoyColor(e.target.value as any)}
+              className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-xs text-slate-200 font-mono outline-none"
+            >
+              <option value="yellow">Special Mark (Yellow)</option>
+              <option value="green">Port Hand (Green)</option>
+              <option value="red">Starboard Hand (Red)</option>
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => {
+                const state = shipState.current;
+                customBuoysRef.current.push({
+                  x: state.x,
+                  y: state.y,
+                  color: customBuoyColor
+                });
+                playBeep(523, 0.1);
+              }}
+              className="flex-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-mono text-xs rounded transition-all active:scale-95 shadow-lg shadow-amber-950/20"
+            >
+              LAY BUOY
+            </button>
+            <button 
+              onClick={() => {
+                customBuoysRef.current = [];
+                playBeep(330, 0.1);
+              }}
+              className="flex-1 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 font-mono text-xs rounded transition-all active:scale-95 border border-slate-600"
+            >
+              CLEAR ALL
+            </button>
+          </div>
+        </div>
+
+        <div className="h-px w-full bg-slate-800 my-2"></div>
+
+        {/* Training Courses */}
+        <div>
+          <div className="text-xs text-slate-400 font-mono mb-2">TRAINING COURSES</div>
+          <select 
+            value={activeCourse ? activeCourse.id : ''} 
+            onChange={(e) => {
+              const val = e.target.value;
+              const selected = PREMADE_COURSES.find(c => c.id === val);
+              startCourse(selected || null);
+            }}
+            className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-slate-200 font-mono outline-none mb-2"
+          >
+            <option value="">Free Sailing (No Course)</option>
+            {PREMADE_COURSES.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          {activeCourse && (
+            <div className="glass-panel-inner rounded-xl p-3 mt-2 text-xs font-mono space-y-1.5">
+              <div className="text-slate-300 font-bold">{activeCourse.name}</div>
+              <div className="text-slate-400 text-[10px] leading-normal">{activeCourse.description}</div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Progress:</span>
+                <span className="text-emerald-400 font-bold">
+                  {activeCourse.gates.filter(g => g.passed).length} / {activeCourse.gates.length} Gates
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Time Elapsed:</span>
+                <span className="text-amber-400 font-bold">
+                  {Math.floor(courseElapsedTime / 60)}m {Math.floor(courseElapsedTime % 60)}s
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="h-px w-full bg-slate-800 my-2"></div>
+
+        {/* Port and Damage Settings */}
+        <div>
+          <div className="text-xs text-slate-400 font-mono mb-2">SCENARIO OPTIONS</div>
+          
+          <div className="flex gap-2 mb-3 bg-slate-950 p-1 rounded border border-slate-700">
+            <button 
+              onClick={() => setPortMode('home')}
+              className={`flex-1 px-2 py-1 text-xs font-mono rounded ${portMode === 'home' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'}`}
+            >
+              HOME PORT
+            </button>
+            <button 
+              onClick={() => setPortMode('random')}
+              className={`flex-1 px-2 py-1 text-xs font-mono rounded ${portMode === 'random' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'}`}
+            >
+              RANDOM
+            </button>
+          </div>
+
+          <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer mb-2">
+            <input type="checkbox" checked={damageEnabled} onChange={e => setDamageEnabled(e.target.checked)} className="accent-red-500 w-4 h-4" />
+            Enable Collision Damage
+          </label>
+          {damageEnabled && shipDamage > 0 && (
+            <button 
+              onClick={() => setShipDamage(0)}
+              className="text-xs text-red-400 hover:text-red-300 underline"
+            >
+              Repair Ship
+            </button>
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex-1 relative bg-slate-900 overflow-hidden w-full h-full">
       <div 
@@ -1701,266 +1972,31 @@ export default function ShipSim() {
       <div className="absolute inset-0 screen-crt opacity-30 mix-blend-overlay pointer-events-none"></div>
 
       {/* Environment Settings Panel (Collapsible) */}
-      <div className={`absolute top-6 right-0 transition-transform duration-300 z-20 flex ${envExpanded ? 'translate-x-0 pr-6' : 'translate-x-full'}`}>
-        
-        {/* Sidebar Trigger */}
-        <button 
-          onClick={() => setEnvExpanded(!envExpanded)}
-          className="absolute -left-8 top-4 glass-panel w-8 h-12 flex items-center justify-center rounded-l-xl text-slate-400 hover:text-white"
-        >
-          {envExpanded ? '▶' : '◀'}
-        </button>
-
-        {/* Sidebar Content */}
-        <div className="glass-panel p-5 rounded-xl w-80 max-h-[80vh] overflow-y-auto custom-scrollbar">
-          <h3 className="text-emerald-400 font-bold mb-4 border-b border-slate-800 pb-2 uppercase tracking-widest text-sm flex items-center justify-between sticky top-0 bg-slate-900/60 backdrop-blur-md z-10">
-            <span>Realism Settings</span>
-            {damageEnabled && shipDamage > 0 && <span className="text-red-500 text-xs">DMG: {Math.round(shipDamage)}%</span>}
-          </h3>
-          
-          <div className="space-y-4">
-          {/* Wind Speed */}
-          <div>
-            <div className="flex justify-between text-xs text-slate-400 font-mono mb-1">
-              <span>WIND SPEED</span>
-              <span className="text-amber-400">{windSpeed} KTS</span>
-            </div>
-            <input type="range" min="0" max="30" value={windSpeed} onChange={(e) => setWindSpeed(parseInt(e.target.value))} className="w-full accent-amber-500" />
-          </div>
-
-          {/* Wind Direction */}
-          <div>
-            <div className="flex justify-between text-xs text-slate-400 font-mono mb-1">
-              <span>WIND DIR (FROM)</span>
-              <span className="text-amber-400">{windDir}°</span>
-            </div>
-            <input type="range" min="0" max="359" value={windDir} onChange={(e) => setWindDir(parseInt(e.target.value))} className="w-full accent-amber-500" />
-          </div>
-
-          <div className="h-px w-full bg-slate-800 my-2"></div>
-
-          {/* Current Speed */}
-          <div>
-            <div className="flex justify-between text-xs text-slate-400 font-mono mb-1">
-              <span>CURRENT (SET)</span>
-              <span className="text-blue-400">{currentSpeed} KTS</span>
-            </div>
-            <input type="range" min="0" max="5" step="0.5" value={currentSpeed} onChange={(e) => setCurrentSpeed(parseFloat(e.target.value))} className="w-full accent-blue-500" />
-          </div>
-
-          {/* Current Direction */}
-          <div>
-            <div className="flex justify-between text-xs text-slate-400 font-mono mb-1">
-              <span>CURRENT DIR (TOWARDS)</span>
-              <span className="text-blue-400">{currentDir}°</span>
-            </div>
-            <input type="range" min="0" max="359" value={currentDir} onChange={(e) => setCurrentDir(parseInt(e.target.value))} className="w-full accent-blue-500" />
-          </div>
-
-          <div className="h-px w-full bg-slate-800 my-2"></div>
-
-          {/* Jetty Select */}
-          <div>
-            <div className="text-xs text-slate-400 font-mono mb-1">JETTY GEOMETRY</div>
-            <select 
-              value={jettyType} 
-              onChange={(e) => setJettyType(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-slate-200 font-mono outline-none"
-            >
-              <option value="straight">Straight Wharf</option>
-              <option value="l-shape">L-Shaped Pier</option>
-              <option value="u-shape">U-Shaped Slip</option>
-              <option value="t-shape">T-Shaped Pier</option>
-            </select>
-          </div>
-
-          {/* Ship Class Select */}
-          <div className="pt-2">
-            <div className="text-xs text-slate-400 font-mono mb-1">VESSEL CLASS</div>
-            <select 
-              value={shipClass} 
-              onChange={(e) => setShipClass(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-slate-200 font-mono outline-none mb-2"
-            >
-              <option value="zodiac">Zodiac</option>
-              <option value="patrol">Patrol Boat</option>
-              <option value="corvette">Corvette</option>
-              <option value="frigate">Frigate</option>
-            </select>
-            
-            <div className="glass-panel-inner rounded-xl p-3 mt-2 text-xs font-mono">
-              {shipClass === 'zodiac' && (
-                <>
-                  <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">5 meters</span></div>
-                  <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">150 HP</span></div>
-                  <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">40+ knots</span></div>
-                  <div className="mt-2 text-slate-300">Fast, highly agile inflatable boat with single outboard motor. Instant response time.</div>
-                </>
-              )}
-              {shipClass === 'patrol' && (
-                <>
-                  <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">24 meters</span></div>
-                  <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">3,000 HP</span></div>
-                  <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">35 knots</span></div>
-                  <div className="mt-2 text-slate-300">Standard patrol craft with twin azimuth thrusters. Highly maneuverable, low inertia.</div>
-                </>
-              )}
-              {shipClass === 'corvette' && (
-                <>
-                  <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">85 meters</span></div>
-                  <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">20,000 HP</span></div>
-                  <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">28 knots</span></div>
-                  <div className="mt-2 text-slate-300">Medium military vessel. Moderate inertia. Equipped with Bow Thruster.</div>
-                </>
-              )}
-              {shipClass === 'frigate' && (
-                <>
-                  <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">135 meters</span></div>
-                  <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">45,000 HP</span></div>
-                  <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">30 knots</span></div>
-                  <div className="mt-2 text-slate-300">Large military vessel. High inertia. Equipped with Bow & Stern Thrusters, and Helipad.</div>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="h-px w-full bg-slate-800 my-2"></div>
-
-          {/* Buoy Toggles */}
-          <div>
-            <div className="text-xs text-slate-400 font-mono mb-2">BUOYS (DRAG ON CANVAS TO MOVE)</div>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                <input type="checkbox" checked={showPortBuoy} onChange={e => setShowPortBuoy(e.target.checked)} className="accent-emerald-500 w-4 h-4" />
-                Port (Green)
-              </label>
-              <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                <input type="checkbox" checked={showStbdBuoy} onChange={e => setShowStbdBuoy(e.target.checked)} className="accent-red-500 w-4 h-4" />
-                Stbd (Red)
-              </label>
-            </div>
-          </div>
-
-          <div className="h-px w-full bg-slate-800 my-2"></div>
-
-          {/* Custom Buoy Laying */}
-          <div>
-            <div className="text-xs text-slate-400 font-mono mb-2">CUSTOM BUOY LAYING</div>
-            <div className="flex gap-2 mb-2">
-              <select
-                value={customBuoyColor}
-                onChange={(e) => setCustomBuoyColor(e.target.value as any)}
-                className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-xs text-slate-200 font-mono outline-none"
-              >
-                <option value="yellow">Special Mark (Yellow)</option>
-                <option value="green">Port Hand (Green)</option>
-                <option value="red">Starboard Hand (Red)</option>
-              </select>
-            </div>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => {
-                  const state = shipState.current;
-                  customBuoysRef.current.push({
-                    x: state.x,
-                    y: state.y,
-                    color: customBuoyColor
-                  });
-                  playBeep(523, 0.1);
-                }}
-                className="flex-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-mono text-xs rounded transition-all active:scale-95 shadow-lg shadow-amber-950/20"
-              >
-                LAY BUOY
-              </button>
-              <button 
-                onClick={() => {
-                  customBuoysRef.current = [];
-                  playBeep(330, 0.1);
-                }}
-                className="flex-1 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 font-mono text-xs rounded transition-all active:scale-95 border border-slate-600"
-              >
-                CLEAR ALL
-              </button>
-            </div>
-          </div>
-
-          <div className="h-px w-full bg-slate-800 my-2"></div>
-
-          {/* Training Courses */}
-          <div>
-            <div className="text-xs text-slate-400 font-mono mb-2">TRAINING COURSES</div>
-            <select 
-              value={activeCourse ? activeCourse.id : ''} 
-              onChange={(e) => {
-                const val = e.target.value;
-                const selected = PREMADE_COURSES.find(c => c.id === val);
-                startCourse(selected || null);
-              }}
-              className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-slate-200 font-mono outline-none mb-2"
-            >
-              <option value="">Free Sailing (No Course)</option>
-              {PREMADE_COURSES.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            {activeCourse && (
-              <div className="glass-panel-inner rounded-xl p-3 mt-2 text-xs font-mono space-y-1.5">
-                <div className="text-slate-300 font-bold">{activeCourse.name}</div>
-                <div className="text-slate-400 text-[10px] leading-normal">{activeCourse.description}</div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Progress:</span>
-                  <span className="text-emerald-400 font-bold">
-                    {activeCourse.gates.filter(g => g.passed).length} / {activeCourse.gates.length} Gates
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Time Elapsed:</span>
-                  <span className="text-amber-400 font-bold">
-                    {Math.floor(courseElapsedTime / 60)}m {Math.floor(courseElapsedTime % 60)}s
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="h-px w-full bg-slate-800 my-2"></div>
-
-          {/* Port and Damage Settings */}
-          <div>
-            <div className="text-xs text-slate-400 font-mono mb-2">SCENARIO OPTIONS</div>
-            
-            <div className="flex gap-2 mb-3 bg-slate-950 p-1 rounded border border-slate-700">
-              <button 
-                onClick={() => setPortMode('home')}
-                className={`flex-1 px-2 py-1 text-xs font-mono rounded ${portMode === 'home' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'}`}
-              >
-                HOME PORT
-              </button>
-              <button 
-                onClick={() => setPortMode('random')}
-                className={`flex-1 px-2 py-1 text-xs font-mono rounded ${portMode === 'random' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'}`}
-              >
-                RANDOM
-              </button>
-            </div>
-
-            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer mb-2">
-              <input type="checkbox" checked={damageEnabled} onChange={e => setDamageEnabled(e.target.checked)} className="accent-red-500 w-4 h-4" />
-              Enable Collision Damage
-            </label>
-            {damageEnabled && shipDamage > 0 && (
-              <button 
-                onClick={() => setShipDamage(0)}
-                className="text-xs text-red-400 hover:text-red-300 underline"
-              >
-                Repair Ship
-              </button>
-            )}
-          </div>
-
+      {!isSettingsPoppedOut && (
+        <div className={`absolute top-6 right-0 transition-transform duration-300 z-20 flex ${envExpanded ? 'translate-x-0 pr-6' : 'translate-x-full'}`}>
+          {/* Sidebar Trigger */}
+          <button 
+            onClick={() => setEnvExpanded(!envExpanded)}
+            className="absolute -left-8 top-4 glass-panel w-8 h-12 flex items-center justify-center rounded-l-xl text-slate-400 hover:text-white"
+          >
+            {envExpanded ? '▶' : '◀'}
+          </button>
+          {settingsPanelJSX(false)}
         </div>
-      </div>
-      </div>
+      )}
+
+      {isSettingsPoppedOut && (
+        <ControlPortal 
+          onClose={() => setIsSettingsPoppedOut(false)}
+          windowName="ShipSettings"
+          windowTitle="Realism & Environmental Settings"
+          width={360}
+          height={750}
+          scrollbars="yes"
+        >
+          {settingsPanelJSX(true)}
+        </ControlPortal>
+      )}
 
       {/* Modern Ship Control Panel */}
       {(() => {

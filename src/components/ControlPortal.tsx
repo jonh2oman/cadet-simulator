@@ -4,9 +4,22 @@ import ReactDOM from 'react-dom';
 interface ControlPortalProps {
   children: React.ReactNode;
   onClose: () => void;
+  windowName?: string;
+  windowTitle?: string;
+  width?: number;
+  height?: number;
+  scrollbars?: 'yes' | 'no';
 }
 
-export default function ControlPortal({ children, onClose }: ControlPortalProps) {
+export default function ControlPortal({ 
+  children, 
+  onClose,
+  windowName = 'ShipControls',
+  windowTitle = 'Vessel Control Console',
+  width = 940,
+  height = 440,
+  scrollbars = 'no'
+}: ControlPortalProps) {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
   const onCloseRef = React.useRef(onClose);
@@ -20,19 +33,19 @@ export default function ControlPortal({ children, onClose }: ControlPortalProps)
     // Open window
     const win = window.open(
       '',
-      'ShipControls',
-      'width=940,height=440,resizable=yes,scrollbars=no,status=no,location=no'
+      windowName,
+      `width=${width},height=${height},resizable=yes,scrollbars=${scrollbars},status=no,location=no`
     );
     if (!win) {
-      alert('Pop-up blocked! Please allow pop-ups to use the popped-out control deck.');
+      alert('Pop-up blocked! Please allow pop-ups to use the popped-out console decks.');
       onCloseRef.current();
       return;
     }
 
-    win.document.title = 'Vessel Control Console';
+    win.document.title = windowTitle;
     
     // Apply background and body styling
-    win.document.body.className = 'bg-slate-950 text-slate-100 min-h-screen overflow-hidden flex items-center justify-center p-4 m-0';
+    win.document.body.className = 'bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4 m-0';
 
     // Copy styles from parent document to child window head
     const styles = document.querySelectorAll('link[rel="stylesheet"], style');
