@@ -61,6 +61,25 @@ export default function ControlPortal({
 
     setContainer(portalRoot);
 
+    // Forward keydown events to the parent window
+    const handleForwardKeyDown = (e: KeyboardEvent) => {
+      const forwardEvent = new KeyboardEvent('keydown', {
+        key: e.key,
+        code: e.code,
+        keyCode: e.keyCode,
+        which: e.which,
+        bubbles: true,
+        cancelable: true,
+        shiftKey: e.shiftKey,
+        ctrlKey: e.ctrlKey,
+        altKey: e.altKey,
+        metaKey: e.metaKey,
+        repeat: e.repeat
+      });
+      window.dispatchEvent(forwardEvent);
+    };
+    win.addEventListener('keydown', handleForwardKeyDown);
+
     // Handle child window closed by user
     const handleUnload = () => {
       onCloseRef.current();
@@ -68,6 +87,7 @@ export default function ControlPortal({
     win.addEventListener('beforeunload', handleUnload);
 
     return () => {
+      win.removeEventListener('keydown', handleForwardKeyDown);
       win.removeEventListener('beforeunload', handleUnload);
       win.close();
     };
