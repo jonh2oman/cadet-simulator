@@ -172,6 +172,9 @@ export default function ShipSim() {
     turbineOsc?: OscillatorNode;
     lfo?: OscillatorNode;
     filter?: BiquadFilterNode;
+    rumbleGain?: GainNode;
+    modulatorGain?: GainNode;
+    bubblingModGain?: GainNode;
     noiseSource?: AudioBufferSourceNode;
     noiseFilter?: BiquadFilterNode;
     noiseGain?: GainNode;
@@ -179,6 +182,7 @@ export default function ShipSim() {
     washFilter?: BiquadFilterNode;
     washGain?: GainNode;
     gainNode: GainNode;
+    compressor?: DynamicsCompressorNode;
   } | null>(null);
   const hornNodeRef = useRef<{ oscillators: OscillatorNode[], gainNode: GainNode } | null>(null);
   const musicTimeoutsRef = useRef<number[]>([]);
@@ -355,6 +359,19 @@ export default function ShipSim() {
     }
     try {
       const ctx = getAudioContext();
+      
+      // We will route all sounds to a main compressor to prevent clipping/cracking
+      let compressor = (engineNodeRef.current as any)?.compressor;
+      if (!compressor) {
+        compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-14, ctx.currentTime);
+        compressor.knee.setValueAtTime(30, ctx.currentTime);
+        compressor.ratio.setValueAtTime(4, ctx.currentTime);
+        compressor.attack.setValueAtTime(0.01, ctx.currentTime);
+        compressor.release.setValueAtTime(0.15, ctx.currentTime);
+        compressor.connect(ctx.destination);
+      }
+
       if (simMode === 'heli') {
         if (!engineNodeRef.current || (engineNodeRef.current as any).type !== 'heli') {
           stopEngineSound();
@@ -407,6 +424,9 @@ export default function ShipSim() {
           lfo.start();
           noiseSource.start();
 
+          // Connect to compressor instead of ctx.destination
+          gainNode.connect(compressor);
+
           engineNodeRef.current = { 
             oscillators: [osc1, osc2], 
             lfo, 
@@ -414,7 +434,8 @@ export default function ShipSim() {
             noiseSource, 
             noiseFilter, 
             noiseGain, 
-            gainNode 
+            gainNode,
+            compressor
           };
           (engineNodeRef.current as any).type = 'heli';
         }
@@ -456,7 +477,9 @@ export default function ShipSim() {
           let turbineOsc: OscillatorNode | undefined;
           let lfo: OscillatorNode | undefined;
           const filter = ctx.createBiquadFilter();
-          const gainNode = ctx.createGain();
+          const rumbleGain = ctx.createGain(); // holds mixed oscillators scaled down to prevent clipping
+          const modulatorGain = ctx.createGain(); // modulates rumble volume (AM)
+          const gainNode = ctx.createGain(); // final mix channel
 
           // Noise sources (1: Exhaust bubbling, 2: Propeller wash)
           const noiseSource = ctx.createBufferSource();
@@ -464,6 +487,7 @@ export default function ShipSim() {
           noiseSource.loop = true;
           const noiseFilter = ctx.createBiquadFilter();
           const noiseGain = ctx.createGain();
+          const bubblingModGain = ctx.createGain(); // modulates exhaust bubble volume (AM)
 
           const washSource = ctx.createBufferSource();
           washSource.buffer = createNoiseBuffer(ctx);
@@ -471,7 +495,7 @@ export default function ShipSim() {
           const washFilter = ctx.createBiquadFilter();
           const washGain = ctx.createGain();
 
-          // LFO setup
+          // LFO setup for stroke modulation
           lfo = ctx.createOscillator();
           lfo.type = 'sawtooth';
           const lfoGain = ctx.createGain();
@@ -479,6 +503,15 @@ export default function ShipSim() {
 
           let turboGain: GainNode | undefined;
           let turbineGain: GainNode | undefined;
+
+          // Connect LFO modulations safely using AM (amplitude modulation)
+          rumbleGain.connect(modulatorGain);
+          modulatorGain.connect(gainNode);
+          
+          noiseSource.connect(noiseFilter);
+          noiseFilter.connect(noiseGain);
+          noiseGain.connect(bubblingModGain);
+          bubblingModGain.connect(gainNode);
 
           if (shipClass === 'zodiac') {
             // Zodiac: buzzy outboard (sawtooth + square)
@@ -494,24 +527,28 @@ export default function ShipSim() {
             filter.type = 'lowpass';
             filter.frequency.value = 400;
 
-            // Connect LFO for rattle/vibrations
-            lfoGain.gain.value = 0.35;
-            lfoGain.connect(gainNode.gain);
+            rumbleGain.gain.value = 0.15; // Scaled down to prevent clipping
+            
+            // Connect LFO to modulate rumble gain
+            lfoGain.gain.value = 0.2; // Modulate by +/- 20%
+            modulatorGain.gain.value = 0.8; // Base value 80% (modulates 60% to 100%)
+            lfoGain.connect(modulatorGain.gain);
 
-            // Transom splash noise
+            // Connect LFO to bubblingModGain.gain
+            lfoGain.connect(bubblingModGain.gain);
+            bubblingModGain.gain.value = 0.6; // Base 60%
+
+            // Transom splash noise (quieter base)
             noiseFilter.type = 'bandpass';
             noiseFilter.frequency.value = 350;
             noiseFilter.Q.value = 1.0;
-            noiseSource.connect(noiseFilter);
-            noiseFilter.connect(noiseGain);
-            noiseGain.connect(gainNode);
 
           } else if (shipClass === 'patrol') {
             // Patrol: Twin diesel + turbo whistle
-            const osc1 = ctx.createOscillator(); // Engine Left
-            const osc2 = ctx.createOscillator(); // Engine Right (detuned)
-            const osc3 = ctx.createOscillator(); // Sub triangle Left
-            const osc4 = ctx.createOscillator(); // Sub triangle Right
+            const osc1 = ctx.createOscillator();
+            const osc2 = ctx.createOscillator();
+            const osc3 = ctx.createOscillator();
+            const osc4 = ctx.createOscillator();
             
             osc1.type = 'sawtooth';
             osc2.type = 'sawtooth';
@@ -527,26 +564,27 @@ export default function ShipSim() {
             filter.type = 'lowpass';
             filter.frequency.value = 180;
 
+            rumbleGain.gain.value = 0.12; // Scaled to prevent clipping
+
+            // LFO connects to modulate engine volume
+            lfoGain.gain.value = 0.25; // +/- 25% modulation
+            modulatorGain.gain.value = 0.75;
+            lfoGain.connect(modulatorGain.gain);
+
             // Turbocharger whine
             turboOsc = ctx.createOscillator();
             turboOsc.type = 'sine';
             turboGain = ctx.createGain();
-            turboGain.gain.value = 0.002;
+            turboGain.gain.value = 0.001; // Quiet turbo
             turboOsc.connect(turboGain);
-            turboGain.connect(gainNode); // Turbo bypasses lowpass engine filter
-
-            // LFO connects to modulate engine volume
-            lfoGain.gain.value = 0.45;
-            lfoGain.connect(gainNode.gain);
+            turboGain.connect(gainNode);
 
             // Exhaust bubbling noise
             noiseFilter.type = 'bandpass';
             noiseFilter.frequency.value = 120;
             noiseFilter.Q.value = 1.2;
-            noiseSource.connect(noiseFilter);
-            noiseFilter.connect(noiseGain);
-            lfoGain.connect(noiseGain.gain); // Bubbles sync with cylinder strokes
-            noiseGain.connect(gainNode);
+            lfoGain.connect(bubblingModGain.gain);
+            bubblingModGain.gain.value = 0.6;
 
             // Propeller wash noise
             washFilter.type = 'bandpass';
@@ -557,11 +595,11 @@ export default function ShipSim() {
             washGain.connect(gainNode);
 
           } else if (shipClass === 'corvette') {
-            // Corvette: Twin heavy marine diesel (very low pitch, deep thrum) + turbo
-            const osc1 = ctx.createOscillator(); // Engine Left
-            const osc2 = ctx.createOscillator(); // Engine Right (detuned)
-            const osc3 = ctx.createOscillator(); // Sub bass Left
-            const osc4 = ctx.createOscillator(); // Sub bass Right
+            // Corvette: Twin heavy marine diesel + turbo
+            const osc1 = ctx.createOscillator();
+            const osc2 = ctx.createOscillator();
+            const osc3 = ctx.createOscillator();
+            const osc4 = ctx.createOscillator();
 
             osc1.type = 'sawtooth';
             osc2.type = 'sawtooth';
@@ -577,26 +615,27 @@ export default function ShipSim() {
             filter.type = 'lowpass';
             filter.frequency.value = 120;
 
+            rumbleGain.gain.value = 0.12;
+
+            // LFO (very deep modulation)
+            lfoGain.gain.value = 0.3;
+            modulatorGain.gain.value = 0.7;
+            lfoGain.connect(modulatorGain.gain);
+
             // Turbocharger
             turboOsc = ctx.createOscillator();
             turboOsc.type = 'sine';
             turboGain = ctx.createGain();
-            turboGain.gain.value = 0.001;
+            turboGain.gain.value = 0.0008;
             turboOsc.connect(turboGain);
             turboGain.connect(gainNode);
-
-            // LFO (very deep modulation)
-            lfoGain.gain.value = 0.55;
-            lfoGain.connect(gainNode.gain);
 
             // Deep bubbling exhaust
             noiseFilter.type = 'bandpass';
             noiseFilter.frequency.value = 80;
             noiseFilter.Q.value = 1.5;
-            noiseSource.connect(noiseFilter);
-            noiseFilter.connect(noiseGain);
-            lfoGain.connect(noiseGain.gain);
-            noiseGain.connect(gainNode);
+            lfoGain.connect(bubblingModGain.gain);
+            bubblingModGain.gain.value = 0.5;
 
             // Propeller wash
             washFilter.type = 'bandpass';
@@ -607,7 +646,7 @@ export default function ShipSim() {
             washGain.connect(gainNode);
 
           } else {
-            // Frigate: Cruising twin diesels + gas turbine scream under load
+            // Frigate: CODAG (Diesel + Turbine)
             const osc1 = ctx.createOscillator();
             const osc2 = ctx.createOscillator();
             const osc3 = ctx.createOscillator();
@@ -624,26 +663,27 @@ export default function ShipSim() {
             filter.type = 'lowpass';
             filter.frequency.value = 110;
 
+            rumbleGain.gain.value = 0.12;
+
+            // LFO
+            lfoGain.gain.value = 0.25;
+            modulatorGain.gain.value = 0.75;
+            lfoGain.connect(modulatorGain.gain);
+
             // Gas Turbine whistle
             turbineOsc = ctx.createOscillator();
             turbineOsc.type = 'sine';
             turbineGain = ctx.createGain();
-            turbineGain.gain.value = 0.001;
+            turbineGain.gain.value = 0.0005;
             turbineOsc.connect(turbineGain);
             turbineGain.connect(gainNode);
-
-            // LFO
-            lfoGain.gain.value = 0.45;
-            lfoGain.connect(gainNode.gain);
 
             // Exhaust bubbling
             noiseFilter.type = 'bandpass';
             noiseFilter.frequency.value = 90;
             noiseFilter.Q.value = 1.3;
-            noiseSource.connect(noiseFilter);
-            noiseFilter.connect(noiseGain);
-            lfoGain.connect(noiseGain.gain);
-            noiseGain.connect(gainNode);
+            lfoGain.connect(bubblingModGain.gain);
+            bubblingModGain.gain.value = 0.6;
 
             // Massive propeller wash
             washFilter.type = 'bandpass';
@@ -663,8 +703,8 @@ export default function ShipSim() {
           noiseSource.start();
           washSource.start();
 
-          filter.connect(gainNode);
-          gainNode.connect(ctx.destination);
+          filter.connect(rumbleGain);
+          gainNode.connect(compressor);
 
           engineNodeRef.current = {
             oscillators: oscs,
@@ -672,13 +712,17 @@ export default function ShipSim() {
             turbineOsc,
             lfo,
             filter,
+            rumbleGain,
+            modulatorGain,
+            bubblingModGain,
             noiseSource,
             noiseFilter,
             noiseGain,
             washSource,
             washFilter,
             washGain,
-            gainNode
+            gainNode,
+            compressor
           };
           (engineNodeRef.current as any).type = 'ship';
           (engineNodeRef.current as any).shipClass = shipClass;
@@ -700,7 +744,7 @@ export default function ShipSim() {
           if (lfo) lfo.frequency.setValueAtTime(8 + absThrottle * 22, ctx.currentTime);
           if (filter) filter.frequency.setValueAtTime(engineFreq * 3.5, ctx.currentTime);
           if (noiseFilter) noiseFilter.frequency.setValueAtTime(300 + absThrottle * 200, ctx.currentTime);
-          if (noiseGain) noiseGain.gain.setValueAtTime(0.01 + absThrottle * 0.035, ctx.currentTime);
+          if (noiseGain) noiseGain.gain.setValueAtTime(0.01 + absThrottle * 0.02, ctx.currentTime);
         } else if (shipClass === 'patrol') {
           oscillators[0].frequency.setValueAtTime(engineFreq, ctx.currentTime);
           oscillators[1].frequency.setValueAtTime(engineFreq * 0.992, ctx.currentTime); // detuned
@@ -712,12 +756,12 @@ export default function ShipSim() {
           if (turboOsc) {
             turboOsc.frequency.setValueAtTime(650 + absThrottle * 1400, ctx.currentTime);
             const tg = (currentRef as any).turboGain;
-            if (tg) tg.gain.setValueAtTime(Math.pow(absThrottle, 1.8) * 0.018, ctx.currentTime);
+            if (tg) tg.gain.setValueAtTime(Math.pow(absThrottle, 1.8) * 0.006, ctx.currentTime);
           }
           if (noiseFilter) noiseFilter.frequency.setValueAtTime(100 + absThrottle * 80, ctx.currentTime);
-          if (noiseGain) noiseGain.gain.setValueAtTime(0.01 + absThrottle * 0.02, ctx.currentTime);
+          if (noiseGain) noiseGain.gain.setValueAtTime(0.008 + absThrottle * 0.012, ctx.currentTime);
           if (washFilter) washFilter.frequency.setValueAtTime(200 + absThrottle * 150, ctx.currentTime);
-          if (washGain) washGain.gain.setValueAtTime(0.005 + absThrottle * 0.045, ctx.currentTime);
+          if (washGain) washGain.gain.setValueAtTime(0.005 + absThrottle * 0.025, ctx.currentTime);
         } else if (shipClass === 'corvette') {
           oscillators[0].frequency.setValueAtTime(engineFreq, ctx.currentTime);
           oscillators[1].frequency.setValueAtTime(engineFreq * 0.995, ctx.currentTime); // detuned
@@ -728,12 +772,12 @@ export default function ShipSim() {
           if (turboOsc) {
             turboOsc.frequency.setValueAtTime(400 + absThrottle * 800, ctx.currentTime);
             const tg = (currentRef as any).turboGain;
-            if (tg) tg.gain.setValueAtTime(Math.pow(absThrottle, 1.8) * 0.014, ctx.currentTime);
+            if (tg) tg.gain.setValueAtTime(Math.pow(absThrottle, 1.8) * 0.004, ctx.currentTime);
           }
           if (noiseFilter) noiseFilter.frequency.setValueAtTime(70 + absThrottle * 50, ctx.currentTime);
-          if (noiseGain) noiseGain.gain.setValueAtTime(0.015 + absThrottle * 0.025, ctx.currentTime);
+          if (noiseGain) noiseGain.gain.setValueAtTime(0.01 + absThrottle * 0.015, ctx.currentTime);
           if (washFilter) washFilter.frequency.setValueAtTime(150 + absThrottle * 100, ctx.currentTime);
-          if (washGain) washGain.gain.setValueAtTime(0.01 + absThrottle * 0.06, ctx.currentTime);
+          if (washGain) washGain.gain.setValueAtTime(0.01 + absThrottle * 0.03, ctx.currentTime);
         } else {
           oscillators[0].frequency.setValueAtTime(engineFreq, ctx.currentTime);
           oscillators[1].frequency.setValueAtTime(engineFreq * 0.993, ctx.currentTime); // detuned
@@ -743,12 +787,12 @@ export default function ShipSim() {
           if (turbineOsc) {
             turbineOsc.frequency.setValueAtTime(1000 + absThrottle * 2200, ctx.currentTime);
             const tg = (currentRef as any).turbineGain;
-            if (tg) tg.gain.setValueAtTime(Math.pow(absThrottle, 2.0) * 0.015, ctx.currentTime);
+            if (tg) tg.gain.setValueAtTime(Math.pow(absThrottle, 2.0) * 0.005, ctx.currentTime);
           }
           if (noiseFilter) noiseFilter.frequency.setValueAtTime(80 + absThrottle * 60, ctx.currentTime);
-          if (noiseGain) noiseGain.gain.setValueAtTime(0.01 + absThrottle * 0.02, ctx.currentTime);
+          if (noiseGain) noiseGain.gain.setValueAtTime(0.008 + absThrottle * 0.012, ctx.currentTime);
           if (washFilter) washFilter.frequency.setValueAtTime(120 + absThrottle * 120, ctx.currentTime);
-          if (washGain) washGain.gain.setValueAtTime(0.01 + absThrottle * 0.08, ctx.currentTime);
+          if (washGain) washGain.gain.setValueAtTime(0.01 + absThrottle * 0.04, ctx.currentTime);
         }
 
         const targetGain = 0.035 + absThrottle * 0.055;
@@ -779,6 +823,9 @@ export default function ShipSim() {
         }
         if (engineNodeRef.current.washSource) {
           try { engineNodeRef.current.washSource.stop(); } catch (e) {}
+        }
+        if (engineNodeRef.current.compressor) {
+          try { engineNodeRef.current.compressor.disconnect(); } catch (e) {}
         }
       } catch (e) {}
       engineNodeRef.current = null;
@@ -1295,7 +1342,7 @@ export default function ShipSim() {
             if (lfo) lfo.frequency.setTargetAtTime(8 + loadRatio * 22, audioCtxRef.current.currentTime, 0.15);
             if (filter) filter.frequency.setTargetAtTime(engineFreq * 3.5, audioCtxRef.current.currentTime, 0.15);
             if (noiseFilter) noiseFilter.frequency.setTargetAtTime(300 + loadRatio * 200, audioCtxRef.current.currentTime, 0.15);
-            if (noiseGain) noiseGain.gain.setTargetAtTime(0.01 + loadRatio * 0.035, audioCtxRef.current.currentTime, 0.15);
+            if (noiseGain) noiseGain.gain.setTargetAtTime(0.01 + loadRatio * 0.02, audioCtxRef.current.currentTime, 0.15);
           } else if (shipClass === 'patrol') {
             oscillators[0].frequency.setTargetAtTime(engineFreq, audioCtxRef.current.currentTime, 0.15);
             oscillators[1].frequency.setTargetAtTime(engineFreq * 0.992, audioCtxRef.current.currentTime, 0.15);
@@ -1307,13 +1354,13 @@ export default function ShipSim() {
               turboOsc.frequency.setTargetAtTime(650 + loadRatio * 1400, audioCtxRef.current.currentTime, 0.15);
               const turboGainNode = (currentRefNode as any).turboGain;
               if (turboGainNode) {
-                turboGainNode.gain.setTargetAtTime(Math.pow(loadRatio, 1.8) * 0.018, audioCtxRef.current.currentTime, 0.15);
+                turboGainNode.gain.setTargetAtTime(Math.pow(loadRatio, 1.8) * 0.006, audioCtxRef.current.currentTime, 0.15);
               }
             }
             if (noiseFilter) noiseFilter.frequency.setTargetAtTime(100 + loadRatio * 80, audioCtxRef.current.currentTime, 0.15);
-            if (noiseGain) noiseGain.gain.setTargetAtTime(0.01 + loadRatio * 0.02, audioCtxRef.current.currentTime, 0.15);
+            if (noiseGain) noiseGain.gain.setTargetAtTime(0.008 + loadRatio * 0.012, audioCtxRef.current.currentTime, 0.15);
             if (washFilter) washFilter.frequency.setTargetAtTime(200 + loadRatio * 150, audioCtxRef.current.currentTime, 0.15);
-            if (washGain) washGain.gain.setTargetAtTime(0.005 + loadRatio * 0.045, audioCtxRef.current.currentTime, 0.15);
+            if (washGain) washGain.gain.setTargetAtTime(0.005 + loadRatio * 0.025, audioCtxRef.current.currentTime, 0.15);
           } else if (shipClass === 'corvette') {
             oscillators[0].frequency.setTargetAtTime(engineFreq, audioCtxRef.current.currentTime, 0.15);
             oscillators[1].frequency.setTargetAtTime(engineFreq * 0.995, audioCtxRef.current.currentTime, 0.15);
@@ -1325,13 +1372,13 @@ export default function ShipSim() {
               turboOsc.frequency.setTargetAtTime(400 + loadRatio * 800, audioCtxRef.current.currentTime, 0.15);
               const turboGainNode = (currentRefNode as any).turboGain;
               if (turboGainNode) {
-                turboGainNode.gain.setTargetAtTime(Math.pow(loadRatio, 1.8) * 0.014, audioCtxRef.current.currentTime, 0.15);
+                turboGainNode.gain.setTargetAtTime(Math.pow(loadRatio, 1.8) * 0.004, audioCtxRef.current.currentTime, 0.15);
               }
             }
             if (noiseFilter) noiseFilter.frequency.setTargetAtTime(70 + loadRatio * 50, audioCtxRef.current.currentTime, 0.15);
-            if (noiseGain) noiseGain.gain.setTargetAtTime(0.015 + loadRatio * 0.025, audioCtxRef.current.currentTime, 0.15);
+            if (noiseGain) noiseGain.gain.setTargetAtTime(0.01 + loadRatio * 0.015, audioCtxRef.current.currentTime, 0.15);
             if (washFilter) washFilter.frequency.setTargetAtTime(150 + loadRatio * 100, audioCtxRef.current.currentTime, 0.15);
-            if (washGain) washGain.gain.setTargetAtTime(0.01 + loadRatio * 0.06, audioCtxRef.current.currentTime, 0.15);
+            if (washGain) washGain.gain.setTargetAtTime(0.01 + loadRatio * 0.03, audioCtxRef.current.currentTime, 0.15);
           } else {
             // Frigate
             oscillators[0].frequency.setTargetAtTime(engineFreq, audioCtxRef.current.currentTime, 0.15);
@@ -1343,13 +1390,13 @@ export default function ShipSim() {
               turbineOsc.frequency.setTargetAtTime(1000 + loadRatio * 2200, audioCtxRef.current.currentTime, 0.15);
               const turbineGainNode = (currentRefNode as any).turbineGain;
               if (turbineGainNode) {
-                turbineGainNode.gain.setTargetAtTime(Math.pow(loadRatio, 2.0) * 0.015, audioCtxRef.current.currentTime, 0.15);
+                turbineGainNode.gain.setTargetAtTime(Math.pow(loadRatio, 2.0) * 0.005, audioCtxRef.current.currentTime, 0.15);
               }
             }
             if (noiseFilter) noiseFilter.frequency.setTargetAtTime(80 + loadRatio * 60, audioCtxRef.current.currentTime, 0.15);
-            if (noiseGain) noiseGain.gain.setTargetAtTime(0.01 + loadRatio * 0.02, audioCtxRef.current.currentTime, 0.15);
+            if (noiseGain) noiseGain.gain.setTargetAtTime(0.008 + loadRatio * 0.012, audioCtxRef.current.currentTime, 0.15);
             if (washFilter) washFilter.frequency.setTargetAtTime(120 + loadRatio * 120, audioCtxRef.current.currentTime, 0.15);
-            if (washGain) washGain.gain.setTargetAtTime(0.01 + loadRatio * 0.08, audioCtxRef.current.currentTime, 0.15);
+            if (washGain) washGain.gain.setTargetAtTime(0.01 + loadRatio * 0.04, audioCtxRef.current.currentTime, 0.15);
           }
           
           const targetGain = 0.035 + loadRatio * 0.055;
