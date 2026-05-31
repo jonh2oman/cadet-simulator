@@ -1140,8 +1140,13 @@ export default function ShipSim() {
 
       // Add wake particles if moving
       if (Math.abs(state.speed) > 0.5) {
-        const sternX = state.x - Math.sin(state.heading) * (15 * visualScale);
-        const sternY = state.y + Math.cos(state.heading) * (15 * visualScale);
+        let localSternY = 26;
+        if (shipClass === 'zodiac') localSternY = 20;
+        else if (shipClass === 'corvette') localSternY = 39;
+        else if (shipClass === 'frigate') localSternY = 52;
+
+        const sternX = state.x - Math.sin(state.heading) * (localSternY * visualScale);
+        const sternY = state.y + Math.cos(state.heading) * (localSternY * visualScale);
         
         if (shipClass === 'patrol' || shipClass === 'corvette' || shipClass === 'frigate') {
           // Twin wakes for twin-thruster vessels
