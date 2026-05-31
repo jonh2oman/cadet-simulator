@@ -414,16 +414,16 @@ export default function ShipSim() {
 
   useEffect(() => {
     if (!isTurningWheel) return;
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
       updateWheelAngle(e.clientX, e.clientY);
     };
-    const handleMouseUp = () => setIsTurningWheel(false);
+    const handlePointerUp = () => setIsTurningWheel(false);
     
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
     };
   }, [isTurningWheel]);
 
@@ -1652,10 +1652,10 @@ export default function ShipSim() {
       if (compassTextRef.current || compassCardRef.current) {
         // Ship heading: 0 is North (Up), 90 is East (Right)
         // Screen coords: North is -y, East is +x.
-        let deg = state.heading * (180 / Math.PI);
+        let deg = Math.round(state.heading * (180 / Math.PI)) % 360;
         if (deg < 0) deg += 360;
-        if (compassTextRef.current) compassTextRef.current.innerText = `${Math.round(deg).toString().padStart(3, '0')}°`;
-        if (compassCardRef.current) compassCardRef.current.style.transform = `rotate(${-deg}deg)`;;
+        if (compassTextRef.current) compassTextRef.current.innerText = `${deg.toString().padStart(3, '0')}°`;
+        if (compassCardRef.current) compassCardRef.current.style.transform = `rotate(${-deg}deg)`;
       }
 
       const cyclicPuck = document.getElementById('cyclic-puck');
@@ -2218,7 +2218,7 @@ export default function ShipSim() {
               <div 
                 ref={wheelRef}
                 className="steering-wheel-container relative w-36 h-36 mt-2 mb-2 rounded-full cursor-pointer touch-none flex items-center justify-center bg-slate-900 border-[4px] border-slate-800 shadow-[inset_0_10px_20px_rgba(0,0,0,0.8)]"
-                onMouseDown={(e) => { setIsTurningWheel(true); updateWheelAngle(e.clientX, e.clientY); }}
+                onPointerDown={(e) => { setIsTurningWheel(true); updateWheelAngle(e.clientX, e.clientY); }}
               >
                 {/* Scale markings on the base */}
                 <div className="absolute inset-1 rounded-full border-4 border-transparent pointer-events-none" style={{
@@ -2270,7 +2270,7 @@ export default function ShipSim() {
               <div 
                 ref={wheelRef}
                 className="steering-wheel-container relative w-36 h-36 mt-2 mb-2 rounded-full cursor-pointer touch-none"
-                onMouseDown={(e) => { setIsTurningWheel(true); updateWheelAngle(e.clientX, e.clientY); }}
+                onPointerDown={(e) => { setIsTurningWheel(true); updateWheelAngle(e.clientX, e.clientY); }}
               >
                 {/* Background housing */}
                 <div className="absolute inset-0 bg-slate-900 rounded-full border-[4px] border-slate-800 shadow-[inset_0_10px_20px_rgba(0,0,0,0.8)]"></div>
