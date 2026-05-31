@@ -163,6 +163,12 @@ export default function ShipSim() {
   const prevPosRef = useRef({ x: 460, y: 150 });
   const [isControlsPoppedOut, setIsControlsPoppedOut] = useState<boolean>(false);
   const [isSettingsPoppedOut, setIsSettingsPoppedOut] = useState<boolean>(false);
+  const [engineSoundOn, setEngineSoundOn] = useState<boolean>(true);
+  const [musicPlaying, setMusicPlaying] = useState<boolean>(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const engineNodeRef = useRef<{ oscillators: OscillatorNode[], gainNode: GainNode } | null>(null);
+  const hornNodeRef = useRef<{ oscillators: OscillatorNode[], gainNode: GainNode } | null>(null);
+  const musicTimeoutsRef = useRef<number[]>([]);
 
   const playBeep = (freq = 800, duration = 0.15) => {
     try {
@@ -308,6 +314,225 @@ export default function ShipSim() {
     heliControlsRef.current.altitude = heliAltitude;
     heliControlsRef.current.speed = heliSpeed;
   }, [throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, anchorDropped, windSpeed, windDir, currentSpeed, currentDir, jettyType, showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode, heliAltitude, heliSpeed]);
+
+  const getAudioContext = () => {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    if (audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume();
+    }
+    return audioCtxRef.current;
+  };
+
+  const updateEngineSound = () => {
+    if (!engineSoundOn || simMode !== 'ship') {
+      stopEngineSound();
+      return;
+    }
+    try {
+      const ctx = getAudioContext();
+      if (!engineNodeRef.current) {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const filter = ctx.createBiquadFilter();
+        const gainNode = ctx.createGain();
+
+        osc1.type = 'sawtooth';
+        osc2.type = 'triangle';
+
+        filter.type = 'lowpass';
+        filter.frequency.value = 80;
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        osc1.start();
+        osc2.start();
+
+        engineNodeRef.current = { oscillators: [osc1, osc2], gainNode };
+      }
+
+      const absThrottle = Math.abs(throttle) / 100;
+      const baseFreq = shipClass === 'zodiac' ? 55 : shipClass === 'patrol' ? 45 : shipClass === 'corvette' ? 35 : 28;
+      
+      const { oscillators, gainNode } = engineNodeRef.current;
+      oscillators[0].frequency.setValueAtTime(baseFreq + absThrottle * baseFreq * 1.5, ctx.currentTime);
+      oscillators[1].frequency.setValueAtTime((baseFreq + absThrottle * baseFreq * 1.5) * 1.02, ctx.currentTime);
+
+      const targetGain = 0.05 + absThrottle * 0.08;
+      gainNode.gain.setTargetAtTime(targetGain, ctx.currentTime, 0.1);
+    } catch (e) {
+      console.error('Engine sound error', e);
+    }
+  };
+
+  const stopEngineSound = () => {
+    if (engineNodeRef.current) {
+      try {
+        engineNodeRef.current.oscillators.forEach(osc => osc.stop());
+      } catch (e) {}
+      engineNodeRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    updateEngineSound();
+    return () => stopEngineSound();
+  }, [throttle, shipClass, simMode, engineSoundOn]);
+
+  const startHorn = () => {
+    try {
+      const ctx = getAudioContext();
+      if (hornNodeRef.current) return;
+
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const osc3 = ctx.createOscillator();
+      const filter = ctx.createBiquadFilter();
+      const gainNode = ctx.createGain();
+
+      let f1 = 80, f2 = 81, f3 = 160;
+      let type: OscillatorType = 'sawtooth';
+      let cutoff = 150;
+      let vol = 0.25;
+
+      if (shipClass === 'zodiac') {
+        f1 = 380; f2 = 385; f3 = 760;
+        type = 'sawtooth';
+        cutoff = 800;
+        vol = 0.15;
+      } else if (shipClass === 'patrol') {
+        f1 = 220; f2 = 223; f3 = 440;
+        type = 'sawtooth';
+        cutoff = 400;
+        vol = 0.2;
+      } else if (shipClass === 'corvette') {
+        f1 = 130; f2 = 132; f3 = 260;
+        type = 'sawtooth';
+        cutoff = 250;
+        vol = 0.22;
+      }
+
+      osc1.frequency.value = f1;
+      osc2.frequency.value = f2;
+      osc3.frequency.value = f3;
+
+      osc1.type = type;
+      osc2.type = type;
+      osc3.type = 'triangle';
+
+      filter.type = 'lowpass';
+      filter.frequency.value = cutoff;
+
+      osc1.connect(filter);
+      osc2.connect(filter);
+      osc3.connect(filter);
+      filter.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      gainNode.gain.setValueAtTime(0, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.05);
+
+      osc1.start();
+      osc2.start();
+      osc3.start();
+
+      hornNodeRef.current = { oscillators: [osc1, osc2, osc3], gainNode };
+    } catch (e) {
+      console.error('Horn sound error', e);
+    }
+  };
+
+  const stopHorn = () => {
+    if (hornNodeRef.current) {
+      try {
+        const ctx = getAudioContext();
+        const { oscillators, gainNode } = hornNodeRef.current;
+        gainNode.gain.setValueAtTime(gainNode.gain.value, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        setTimeout(() => {
+          try {
+            oscillators.forEach(osc => osc.stop());
+          } catch (e) {}
+        }, 150);
+      } catch (e) {}
+      hornNodeRef.current = null;
+    }
+  };
+
+  const shantyNotes = [
+    { note: 'A4', dur: 1.0 }, { note: 'A4', dur: 1.0 }, { note: 'A4', dur: 1.0 }, { note: 'A4', dur: 1.0 },
+    { note: 'A4', dur: 1.0 }, { note: 'D4', dur: 1.0 }, { note: 'F4', dur: 1.0 }, { note: 'A4', dur: 1.0 },
+    { note: 'G4', dur: 1.0 }, { note: 'G4', dur: 1.0 }, { note: 'G4', dur: 1.0 }, { note: 'G4', dur: 1.0 },
+    { note: 'G4', dur: 1.0 }, { note: 'C4', dur: 1.0 }, { note: 'E4', dur: 1.0 }, { note: 'G4', dur: 1.0 },
+    { note: 'A4', dur: 1.0 }, { note: 'A4', dur: 1.0 }, { note: 'A4', dur: 1.0 }, { note: 'A4', dur: 1.0 },
+    { note: 'A4', dur: 0.5 }, { note: 'B4', dur: 0.5 }, { note: 'C5', dur: 1.0 }, { note: 'B4', dur: 1.0 }, { note: 'A4', dur: 1.0 },
+    { note: 'G4', dur: 1.0 }, { note: 'F4', dur: 1.0 }, { note: 'E4', dur: 1.0 }, { note: 'D4', dur: 1.0 },
+    { note: 'D4', dur: 2.0 }
+  ];
+
+  const noteFreqs: { [key: string]: number } = {
+    'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00,
+    'A4': 440.00, 'B4': 493.88, 'C5': 523.25
+  };
+
+  const playShantyLoop = (index = 0) => {
+    if (!musicPlayingRef.current) return;
+    try {
+      const ctx = getAudioContext();
+      const item = shantyNotes[index];
+      const freq = noteFreqs[item.note];
+      
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      const tempo = 140;
+      const beatDuration = 60 / tempo;
+      const duration = item.dur * beatDuration;
+      
+      gainNode.gain.setValueAtTime(0, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.04, ctx.currentTime + 0.02);
+      gainNode.gain.setValueAtTime(0.04, ctx.currentTime + duration - 0.03);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+      
+      const nextIndex = (index + 1) % shantyNotes.length;
+      const timeoutId = window.setTimeout(() => {
+        playShantyLoop(nextIndex);
+      }, duration * 1000);
+      
+      musicTimeoutsRef.current.push(timeoutId);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const stopMusic = () => {
+    musicTimeoutsRef.current.forEach(t => clearTimeout(t));
+    musicTimeoutsRef.current = [];
+  };
+
+  const musicPlayingRef = useRef<boolean>(false);
+  useEffect(() => {
+    musicPlayingRef.current = musicPlaying;
+    if (musicPlaying) {
+      playShantyLoop(0);
+    } else {
+      stopMusic();
+    }
+    return () => stopMusic();
+  }, [musicPlaying]);
 
   useEffect(() => {
     const generateIsland = (cx: number, cy: number, radius: number) => {
@@ -550,6 +775,14 @@ export default function ShipSim() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+
+      if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        startHorn();
+        return;
+      }
+
       if (controlsRef.current.simMode === 'heli') {
         if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
           e.preventDefault();
@@ -576,9 +809,21 @@ export default function ShipSim() {
       if (e.key === 'z' || e.key === 'Z') { setThrottle(prev => Math.max(-100, prev - 5)); }
       if (e.key === 'a' || e.key === 'A') { setThrottle(0); }
     };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        stopHorn();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [shipClass]);
 
   // Rendering loop for the canvas
   useEffect(() => {
@@ -2083,13 +2328,35 @@ export default function ShipSim() {
             >
               {isPaused ? 'RESUME' : 'PAUSE'}
             </button>
-            <div className="flex gap-4 glass-panel-inner p-2 rounded-lg">
-              <div className="flex flex-col items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8),inset_0_1px_2px_rgba(255,255,255,0.5)]"></div>
+            <button 
+              onMouseDown={(e) => e.stopPropagation()}
+              onPointerDown={(e) => { e.stopPropagation(); startHorn(); }}
+              onPointerUp={(e) => { e.stopPropagation(); stopHorn(); }}
+              onPointerLeave={(e) => { e.stopPropagation(); stopHorn(); }}
+              className="px-6 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest rounded-lg border-b-[3px] active:translate-y-[2px] active:border-b-[1px] transition-all flex-1 max-w-[180px] mr-4 bg-gradient-to-b from-red-600 to-red-800 text-red-100 border-red-950 hover:from-red-500 hover:to-red-700 active:from-red-700 active:to-red-900 shadow-[0_4px_8px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.4)] select-none touch-none"
+            >
+              📣 HORN [H]
+            </button>
+            <div className="flex gap-3 glass-panel-inner p-2 rounded-lg items-center" onMouseDown={e => e.stopPropagation()}>
+              <button 
+                onClick={() => setMusicPlaying(!musicPlaying)}
+                className={`px-2 py-1 rounded text-[9px] font-mono font-bold uppercase transition-all ${musicPlaying ? 'bg-emerald-600 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}
+              >
+                🎵 MUSIC: {musicPlaying ? 'ON' : 'OFF'}
+              </button>
+              <button 
+                onClick={() => setEngineSoundOn(!engineSoundOn)}
+                className={`px-2 py-1 rounded text-[9px] font-mono font-bold uppercase transition-all ${engineSoundOn ? 'bg-emerald-600 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}
+              >
+                🔊 ENG: {engineSoundOn ? 'ON' : 'OFF'}
+              </button>
+              <div className="h-4 w-px bg-slate-700 mx-1"></div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8),inset_0_1px_2px_rgba(255,255,255,0.5)]"></div>
                 <span className="text-[8px] text-slate-400 font-mono">SYS OK</span>
               </div>
-              <div className="flex flex-col items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8),inset_0_1px_2px_rgba(255,255,255,0.5)]"></div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8),inset_0_1px_2px_rgba(255,255,255,0.5)]"></div>
                 <span className="text-[8px] text-slate-400 font-mono">MANUAL</span>
               </div>
             </div>
