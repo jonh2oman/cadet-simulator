@@ -9,6 +9,13 @@ interface ControlPortalProps {
 export default function ControlPortal({ children, onClose }: ControlPortalProps) {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
+  const onCloseRef = React.useRef(onClose);
+
+  // Keep the ref updated with the latest callback
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     // Open window
     const win = window.open(
@@ -18,7 +25,7 @@ export default function ControlPortal({ children, onClose }: ControlPortalProps)
     );
     if (!win) {
       alert('Pop-up blocked! Please allow pop-ups to use the popped-out control deck.');
-      onClose();
+      onCloseRef.current();
       return;
     }
 
@@ -43,7 +50,7 @@ export default function ControlPortal({ children, onClose }: ControlPortalProps)
 
     // Handle child window closed by user
     const handleUnload = () => {
-      onClose();
+      onCloseRef.current();
     };
     win.addEventListener('beforeunload', handleUnload);
 
@@ -51,7 +58,7 @@ export default function ControlPortal({ children, onClose }: ControlPortalProps)
       win.removeEventListener('beforeunload', handleUnload);
       win.close();
     };
-  }, [onClose]);
+  }, []);
 
   if (!container) return null;
 
