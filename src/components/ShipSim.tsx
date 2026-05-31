@@ -166,7 +166,7 @@ export default function ShipSim() {
   const [engineSoundOn, setEngineSoundOn] = useState<boolean>(true);
   const [musicPlaying, setMusicPlaying] = useState<boolean>(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const engineNodeRef = useRef<{ oscillators: OscillatorNode[], gainNode: GainNode } | null>(null);
+  const engineNodeRef = useRef<{ oscillators: OscillatorNode[], lfo?: OscillatorNode, filter?: BiquadFilterNode, gainNode: GainNode } | null>(null);
   const hornNodeRef = useRef<{ oscillators: OscillatorNode[], gainNode: GainNode } | null>(null);
   const musicTimeoutsRef = useRef<number[]>([]);
 
@@ -344,7 +344,6 @@ export default function ShipSim() {
           osc1.type = 'sawtooth';
           osc2.type = 'sawtooth';
 
-          // Set up LFO modulation on gain for thumping rotor sound
           osc2.frequency.value = 10;
           lfoGain.gain.value = 0.5;
 
@@ -381,37 +380,56 @@ export default function ShipSim() {
       if (simMode === 'ship') {
         if (!engineNodeRef.current || (engineNodeRef.current as any).type !== 'ship') {
           stopEngineSound();
-          const osc1 = ctx.createOscillator();
-          const osc2 = ctx.createOscillator();
+          const osc1 = ctx.createOscillator(); // Sawtooth 1
+          const osc2 = ctx.createOscillator(); // Sawtooth 2
+          const osc3 = ctx.createOscillator(); // Sub triangle
+          const lfo = ctx.createOscillator(); // Combustion cylinder strokes LFO
+          const lfoGain = ctx.createGain();
           const filter = ctx.createBiquadFilter();
           const gainNode = ctx.createGain();
 
           osc1.type = 'sawtooth';
-          osc2.type = 'triangle';
-
-          filter.type = 'lowpass';
-          filter.frequency.value = 80;
+          osc2.type = 'sawtooth';
+          osc3.type = 'triangle';
+          lfo.type = 'triangle';
 
           osc1.connect(filter);
           osc2.connect(filter);
+          osc3.connect(filter);
           filter.connect(gainNode);
           gainNode.connect(ctx.destination);
 
+          lfoGain.gain.value = 0.45; // Modulate volume by 45% to simulate engine strokes
+          lfo.connect(lfoGain);
+          lfoGain.connect(gainNode.gain);
+
           osc1.start();
           osc2.start();
+          osc3.start();
+          lfo.start();
 
-          engineNodeRef.current = { oscillators: [osc1, osc2], gainNode };
+          engineNodeRef.current = { oscillators: [osc1, osc2, osc3], lfo, filter, gainNode };
           (engineNodeRef.current as any).type = 'ship';
         }
 
         const absThrottle = Math.abs(throttle) / 100;
         const baseFreq = shipClass === 'zodiac' ? 55 : shipClass === 'patrol' ? 45 : shipClass === 'corvette' ? 35 : 28;
-        
-        const { oscillators, gainNode } = engineNodeRef.current;
-        oscillators[0].frequency.setValueAtTime(baseFreq + absThrottle * baseFreq * 1.5, ctx.currentTime);
-        oscillators[1].frequency.setValueAtTime((baseFreq + absThrottle * baseFreq * 1.5) * 1.02, ctx.currentTime);
+        const engineFreq = baseFreq + absThrottle * baseFreq * 1.5;
 
-        const targetGain = 0.05 + absThrottle * 0.08;
+        const { oscillators, lfo, filter, gainNode } = engineNodeRef.current;
+        
+        oscillators[0].frequency.setValueAtTime(engineFreq, ctx.currentTime);
+        oscillators[1].frequency.setValueAtTime(engineFreq * 1.015, ctx.currentTime);
+        oscillators[2].frequency.setValueAtTime(engineFreq * 0.5, ctx.currentTime); // sub harmonic
+
+        if (lfo) {
+          lfo.frequency.setValueAtTime(4.5 + absThrottle * 7.5, ctx.currentTime); // 4.5Hz idle up to 12Hz revving
+        }
+        if (filter) {
+          filter.frequency.setValueAtTime(engineFreq * 2.8, ctx.currentTime); // open filter to let harmonics out under throttle
+        }
+
+        const targetGain = 0.04 + absThrottle * 0.06;
         gainNode.gain.setTargetAtTime(targetGain, ctx.currentTime, 0.1);
       }
     } catch (e) {
@@ -422,7 +440,12 @@ export default function ShipSim() {
   const stopEngineSound = () => {
     if (engineNodeRef.current) {
       try {
-        engineNodeRef.current.oscillators.forEach(osc => osc.stop());
+        engineNodeRef.current.oscillators.forEach(osc => {
+          try { osc.stop(); } catch (e) {}
+        });
+        if (engineNodeRef.current.lfo) {
+          try { engineNodeRef.current.lfo.stop(); } catch (e) {}
+        }
       } catch (e) {}
       engineNodeRef.current = null;
     }
@@ -911,7 +934,7 @@ export default function ShipSim() {
           ? (100 + speedRatio * 80 + (heliState.current.altitude / 100) * 40)
           : (shipClass === 'zodiac' ? 55 : shipClass === 'patrol' ? 45 : shipClass === 'corvette' ? 35 : 28);
           
-        const { oscillators, gainNode } = engineNodeRef.current;
+        const { oscillators, lfo, filter, gainNode } = engineNodeRef.current;
         if (simMode === 'heli') {
           oscillators[0].frequency.setTargetAtTime(baseFreq, audioCtxRef.current.currentTime, 0.1);
           oscillators[1].frequency.setTargetAtTime(8 + speedRatio * 6, audioCtxRef.current.currentTime, 0.1);
@@ -921,11 +944,21 @@ export default function ShipSim() {
           // Average of throttle input and actual underway speed to simulate engine load
           const absThrottle = Math.abs(throttle) / 100;
           const loadRatio = (speedRatio + absThrottle) / 2;
+          const engineFreq = baseFreq + loadRatio * baseFreq * 1.5;
           
-          oscillators[0].frequency.setTargetAtTime(baseFreq + loadRatio * baseFreq * 1.5, audioCtxRef.current.currentTime, 0.1);
-          oscillators[1].frequency.setTargetAtTime((baseFreq + loadRatio * baseFreq * 1.5) * 1.02, audioCtxRef.current.currentTime, 0.1);
+          oscillators[0].frequency.setTargetAtTime(engineFreq, audioCtxRef.current.currentTime, 0.15);
+          oscillators[1].frequency.setTargetAtTime(engineFreq * 1.015, audioCtxRef.current.currentTime, 0.15);
+          if (oscillators[2]) {
+            oscillators[2].frequency.setTargetAtTime(engineFreq * 0.5, audioCtxRef.current.currentTime, 0.15);
+          }
+          if (lfo) {
+            lfo.frequency.setTargetAtTime(4.5 + loadRatio * 7.5, audioCtxRef.current.currentTime, 0.15);
+          }
+          if (filter) {
+            filter.frequency.setTargetAtTime(engineFreq * 2.8, audioCtxRef.current.currentTime, 0.15);
+          }
           
-          const targetGain = 0.04 + loadRatio * 0.08;
+          const targetGain = 0.04 + loadRatio * 0.06;
           gainNode.gain.setTargetAtTime(targetGain, audioCtxRef.current.currentTime, 0.1);
         }
       }
