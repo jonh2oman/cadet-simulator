@@ -326,44 +326,94 @@ export default function ShipSim() {
   };
 
   const updateEngineSound = () => {
-    if (!engineSoundOn || simMode !== 'ship') {
+    if (!engineSoundOn) {
       stopEngineSound();
       return;
     }
     try {
       const ctx = getAudioContext();
-      if (!engineNodeRef.current) {
-        const osc1 = ctx.createOscillator();
-        const osc2 = ctx.createOscillator();
-        const filter = ctx.createBiquadFilter();
-        const gainNode = ctx.createGain();
+      if (simMode === 'heli') {
+        if (!engineNodeRef.current || (engineNodeRef.current as any).type !== 'heli') {
+          stopEngineSound();
+          const osc1 = ctx.createOscillator(); // Turbine whine
+          const osc2 = ctx.createOscillator(); // Rotor thump
+          const lfoGain = ctx.createGain();
+          const filter = ctx.createBiquadFilter();
+          const gainNode = ctx.createGain();
 
-        osc1.type = 'sawtooth';
-        osc2.type = 'triangle';
+          osc1.type = 'sawtooth';
+          osc2.type = 'sawtooth';
 
-        filter.type = 'lowpass';
-        filter.frequency.value = 80;
+          // Set up LFO modulation on gain for thumping rotor sound
+          osc2.frequency.value = 10;
+          lfoGain.gain.value = 0.5;
 
-        osc1.connect(filter);
-        osc2.connect(filter);
-        filter.connect(gainNode);
-        gainNode.connect(ctx.destination);
+          osc2.connect(lfoGain);
+          lfoGain.connect(gainNode.gain);
 
-        osc1.start();
-        osc2.start();
+          osc1.connect(filter);
+          filter.type = 'lowpass';
+          filter.frequency.value = 250;
 
-        engineNodeRef.current = { oscillators: [osc1, osc2], gainNode };
+          filter.connect(gainNode);
+          gainNode.connect(ctx.destination);
+
+          osc1.start();
+          osc2.start();
+
+          engineNodeRef.current = { oscillators: [osc1, osc2], gainNode };
+          (engineNodeRef.current as any).type = 'heli';
+        }
+
+        const speedRatio = heliSpeed / 30; // 0 to 1
+        const altRatio = heliAltitude / 100; // 0 to 1
+        const { oscillators, gainNode } = engineNodeRef.current;
+
+        oscillators[0].frequency.setValueAtTime(100 + speedRatio * 80 + altRatio * 40, ctx.currentTime);
+        oscillators[1].frequency.setValueAtTime(8 + speedRatio * 6, ctx.currentTime);
+
+        const targetGain = 0.08 + speedRatio * 0.08 + altRatio * 0.04;
+        gainNode.gain.setTargetAtTime(targetGain, ctx.currentTime, 0.1);
+        return;
       }
 
-      const absThrottle = Math.abs(throttle) / 100;
-      const baseFreq = shipClass === 'zodiac' ? 55 : shipClass === 'patrol' ? 45 : shipClass === 'corvette' ? 35 : 28;
-      
-      const { oscillators, gainNode } = engineNodeRef.current;
-      oscillators[0].frequency.setValueAtTime(baseFreq + absThrottle * baseFreq * 1.5, ctx.currentTime);
-      oscillators[1].frequency.setValueAtTime((baseFreq + absThrottle * baseFreq * 1.5) * 1.02, ctx.currentTime);
+      // Ship Engine
+      if (simMode === 'ship') {
+        if (!engineNodeRef.current || (engineNodeRef.current as any).type !== 'ship') {
+          stopEngineSound();
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const filter = ctx.createBiquadFilter();
+          const gainNode = ctx.createGain();
 
-      const targetGain = 0.05 + absThrottle * 0.08;
-      gainNode.gain.setTargetAtTime(targetGain, ctx.currentTime, 0.1);
+          osc1.type = 'sawtooth';
+          osc2.type = 'triangle';
+
+          filter.type = 'lowpass';
+          filter.frequency.value = 80;
+
+          osc1.connect(filter);
+          osc2.connect(filter);
+          filter.connect(gainNode);
+          gainNode.connect(ctx.destination);
+
+          osc1.start();
+          osc2.start();
+
+          engineNodeRef.current = { oscillators: [osc1, osc2], gainNode };
+          (engineNodeRef.current as any).type = 'ship';
+        }
+
+        const absThrottle = Math.abs(throttle) / 100;
+        const baseFreq = shipClass === 'zodiac' ? 55 : shipClass === 'patrol' ? 45 : shipClass === 'corvette' ? 35 : 28;
+        
+        const { oscillators, gainNode } = engineNodeRef.current;
+        oscillators[0].frequency.setValueAtTime(baseFreq + absThrottle * baseFreq * 1.5, ctx.currentTime);
+        oscillators[1].frequency.setValueAtTime((baseFreq + absThrottle * baseFreq * 1.5) * 1.02, ctx.currentTime);
+
+        const targetGain = 0.05 + absThrottle * 0.08;
+        gainNode.gain.setTargetAtTime(targetGain, ctx.currentTime, 0.1);
+      }
     } catch (e) {
       console.error('Engine sound error', e);
     }
@@ -381,7 +431,7 @@ export default function ShipSim() {
   useEffect(() => {
     updateEngineSound();
     return () => stopEngineSound();
-  }, [throttle, shipClass, simMode, engineSoundOn]);
+  }, [throttle, shipClass, simMode, engineSoundOn, heliSpeed, heliAltitude]);
 
   const startHorn = () => {
     try {
@@ -1938,10 +1988,10 @@ export default function ShipSim() {
           ) : (
             <button
               onClick={() => setIsSettingsPoppedOut(true)}
-              className="px-1.5 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[9px] uppercase font-mono tracking-wider transition-all"
-              title="Pop out settings panel"
+              className="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[10px] uppercase font-bold tracking-wider transition-all shadow-[0_0_10px_rgba(37,99,235,0.4)]"
+              title="Pop out environmental controls"
             >
-              Pop Out
+              Pop Out ↗
             </button>
           )}
           {damageEnabled && shipDamage > 0 && <span className="text-red-500 text-[10px]">DMG: {Math.round(shipDamage)}%</span>}
@@ -2224,8 +2274,18 @@ export default function ShipSim() {
           <button 
             onClick={() => setEnvExpanded(!envExpanded)}
             className="absolute -left-8 top-4 glass-panel w-8 h-12 flex items-center justify-center rounded-l-xl text-slate-400 hover:text-white"
+            title={envExpanded ? 'Collapse Settings' : 'Expand Settings'}
           >
             {envExpanded ? '▶' : '◀'}
+          </button>
+          
+          {/* Quick Pop Out Tab */}
+          <button 
+            onClick={() => setIsSettingsPoppedOut(true)}
+            className="absolute -left-8 top-20 bg-blue-600 hover:bg-blue-500 w-8 h-12 flex items-center justify-center rounded-l-xl text-white shadow-[0_0_12px_rgba(37,99,235,0.5)] border-l border-y border-blue-400 font-bold"
+            title="Pop Out Settings Window"
+          >
+            ↗
           </button>
           {settingsPanelJSX(false)}
         </div>
