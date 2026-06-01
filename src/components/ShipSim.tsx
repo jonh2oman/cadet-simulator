@@ -1593,7 +1593,7 @@ export default function ShipSim() {
       const dockWorldY = 50;
       let berthZone = { x: -80, y: 20, w: 70, h: 160, snapX: 460, snapY: 150, snapH: 0 }; // default
       
-      if (portMode === 'pasadena') {
+      if (controlsRef.current.portMode === 'pasadena') {
         jettyRects = [
           { x: -130, y: 45, w: 20, h: 155 }, // Left straight breakwater
           { x: 110, y: 45, w: 20, h: 155 },  // Right straight breakwater
@@ -1631,7 +1631,7 @@ export default function ShipSim() {
 
       // Island & Mainland hitboxes
       if (!collision) {
-        if (portMode === 'pasadena') {
+        if (controlsRef.current.portMode === 'pasadena') {
           // Exact diagonal channel boundary collision for Deer Lake (Pasadena map)
           // NW Shore is at y = -x - 1500
           const minChannelY = -newX - 1500 + shipRadius;
