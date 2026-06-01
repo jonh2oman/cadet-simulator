@@ -1443,12 +1443,12 @@ export default function ShipSim() {
         maxSpeedMultiplier = 0.40; // ~40 knots
       } else if (shipClass === 'corvette') {
         inertia = 0.5;
-        turnInertia = 0.6;
+        turnInertia = 0.25; // Slower turning response
         visualScale = 1.875; // (scaled up another 25%)
         maxSpeedMultiplier = 0.28; // ~28 knots
       } else if (shipClass === 'frigate') {
         inertia = 0.25;
-        turnInertia = 0.3;
+        turnInertia = 0.10; // Realistic slow turn response for a 135m ship
         visualScale = 2.8125; // (scaled up another 25%)
         maxSpeedMultiplier = 0.30; // ~30 knots
       }
@@ -1459,7 +1459,7 @@ export default function ShipSim() {
 
       // Turning based on rudder (-45 to 45) and speed
       if (Math.abs(state.speed) > 0.1) {
-        const turnRate = (rudder / 45) * Math.min(Math.abs(state.speed), 5) * 0.5 * turnInertia;
+        const turnRate = (rudder / 45) * Math.min(Math.abs(state.speed), 5) * 0.08 * turnInertia;
         state.heading += (state.speed > 0 ? turnRate : -turnRate) * dt;
       }
       
