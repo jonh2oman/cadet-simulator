@@ -1258,15 +1258,31 @@ export default function ShipSim() {
 
       if (e.key === 'ArrowLeft') { e.preventDefault(); setRudder(prev => Math.max(-45, prev - 5)); }
       if (e.key === 'ArrowRight') { e.preventDefault(); setRudder(prev => Math.min(45, prev + 5)); }
-      if (e.key === 'q' || e.key === 'Q') { setThrottle(prev => Math.min(100, prev + 5)); }
-      if (e.key === 'z' || e.key === 'Z') { setThrottle(prev => Math.max(-100, prev - 5)); }
-      if (e.key === 'a' || e.key === 'A') { setThrottle(0); }
+      if (e.key === 'w' || e.key === 'W') { setThrottle(prev => Math.min(100, prev + 5)); }
+      if (e.key === 'x' || e.key === 'X') { setThrottle(prev => Math.max(-100, prev - 5)); }
+      if (e.key === 's' || e.key === 'S') { setThrottle(0); }
+      
+      // Momentary side thrusters controls
+      if (e.key === 'a' || e.key === 'A') { setBowThruster(-100); }
+      if (e.key === 'd' || e.key === 'D') { setBowThruster(100); }
+      if (e.key === 'z' || e.key === 'Z') { setSternThruster(-100); }
+      if (e.key === 'c' || e.key === 'C') { setSternThruster(100); }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === 'h' || e.key === 'H') {
         e.preventDefault();
         stopHorn();
+      }
+      
+      // Releasing momentary side thrusters sets them back to 0
+      if (controlsRef.current.simMode === 'ship') {
+        if (e.key === 'a' || e.key === 'A' || e.key === 'd' || e.key === 'D') {
+          setBowThruster(0);
+        }
+        if (e.key === 'z' || e.key === 'Z' || e.key === 'c' || e.key === 'C') {
+          setSternThruster(0);
+        }
       }
     };
 
@@ -3073,7 +3089,7 @@ export default function ShipSim() {
                 </div>
               </div>
             </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Lever <span className="text-slate-500 font-normal">[Q/Z]</span></span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Lever <span className="text-slate-500 font-normal">[W/X]</span></span>
           </div>
 
           {/* Traditional Compass */}

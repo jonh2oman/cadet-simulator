@@ -48,9 +48,11 @@ Enhance your nautical knowledge with built-in educational decks:
 ## ⌨️ Control Deck Shortcuts
 
 Interact directly with the controls using your keyboard:
-*   `Q` / `Z` - Smoothly advance or retard Throttle
-*   `A` - Quick throttle cutoff (0%)
-*   `Left Arrow / Right Arrow` - Steer Rudder
+*   `W` / `X` - Smoothly advance or retard Throttle
+*   `S` - Quick throttle cutoff (0%)
+*   `Left Arrow` / `Right Arrow` - Steer Rudder
+*   `A` / `D` - Momentary Bow Thruster (Port / Starboard)
+*   `Z` / `C` - Momentary Stern Thruster (Port / Starboard)
 *   `H` - Sound ship's horn (tone depends on the active vessel's displacement)
 
 ---
