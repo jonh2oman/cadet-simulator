@@ -1018,20 +1018,29 @@ export default function ShipSim() {
       const nwPoints: number[][] = [];
       const sePoints: number[][] = [];
       
-      // Generate NW Shore (y = -x + 250)
-      for (let x = -2500; x <= 2500; x += 200) {
-        const baseY = -x + 250;
-        const noiseX = (Math.random() - 0.5) * 45;
-        const noiseY = (Math.random() - 0.5) * 45;
+      // Generate NW Shore (y = -x - 400) - Much wider channel
+      for (let x = -2500; x <= 2500; x += 150) {
+        const baseY = -x - 400;
+        const noiseX = (Math.random() - 0.5) * 35;
+        const noiseY = (Math.random() - 0.5) * 35;
         nwPoints.push([x + noiseX, baseY + noiseY]);
       }
       nwPoints.push([2500, -2500], [-2500, -2500]);
       
-      // Generate SE Shore (y = -x + 850)
-      for (let x = 2500; x >= -2500; x -= 200) {
-        const baseY = -x + 850;
-        const noiseX = (Math.random() - 0.5) * 45;
-        const noiseY = (Math.random() - 0.5) * 45;
+      // Generate SE Shore (y = -x + 1350) with custom Pasadena Cadet Yacht Club harbor peninsula
+      for (let x = 2500; x >= -2500; x -= 100) {
+        let baseY = -x + 1350;
+        if (x >= 600 && x <= 800) {
+          const ratio = (x - 600) / 200;
+          baseY = ratio * (-x + 1350) + (1 - ratio) * 250; // Meets the back of the jetty breakwaters
+        } else if (x >= 400 && x < 600) {
+          baseY = 250; // flat shore at harbor entrance back
+        } else if (x >= 200 && x < 400) {
+          const ratio = (400 - x) / 200;
+          baseY = ratio * (-x + 1350) + (1 - ratio) * 250;
+        }
+        const noiseX = (Math.random() - 0.5) * 25;
+        const noiseY = (Math.random() - 0.5) * 25;
         sePoints.push([x + noiseX, baseY + noiseY]);
       }
       sePoints.push([-2500, 2500], [2500, 2500]);
@@ -1555,23 +1564,35 @@ export default function ShipSim() {
       const dockWorldY = 50;
       let berthZone = { x: -80, y: 20, w: 70, h: 160, snapX: 460, snapY: 150, snapH: 0 }; // default
       
-      switch (controlsRef.current.jettyType) {
-        case 'straight': 
-          jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: 40, y: 80, w: 210, h: 40 }]; 
-          berthZone = { x: -80, y: 20, w: 70, h: 160, snapX: 460, snapY: 150, snapH: 0 };
-          break;
-        case 'l-shape': 
-          jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: -100, y: 0, w: 100, h: 40 }, { x: 40, y: 80, w: 210, h: 40 }]; 
-          berthZone = { x: -80, y: 40, w: 80, h: 140, snapX: 460, snapY: 150, snapH: 0 };
-          break;
-        case 'u-shape': 
-          jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: -100, y: 0, w: 100, h: 40 }, { x: -100, y: 160, w: 100, h: 40 }, { x: 40, y: 80, w: 210, h: 40 }]; 
-          berthZone = { x: -100, y: 40, w: 100, h: 120, snapX: 450, snapY: 150, snapH: 0 };
-          break;
-        case 't-shape': 
-          jettyRects = [{ x: -40, y: 80, w: 80, h: 40 }, { x: -80, y: -40, w: 40, h: 280 }, { x: 40, y: 80, w: 210, h: 40 }]; 
-          berthZone = { x: -150, y: 20, w: 60, h: 160, snapX: 390, snapY: 150, snapH: 0 };
-          break;
+      if (portMode === 'pasadena') {
+        jettyRects = [
+          { x: -80, y: 60, w: 25, h: 140 }, // Left breakwater main
+          { x: -55, y: 40, w: 25, h: 30 },  // Left breakwater curve tip
+          { x: 55, y: 60, w: 25, h: 140 },  // Right breakwater main
+          { x: 30, y: 40, w: 25, h: 30 },   // Right breakwater curve tip
+          { x: -35, y: 80, w: 8, h: 80 },   // Left floating finger dock
+          { x: 27, y: 80, w: 8, h: 80 }     // Right floating finger dock
+        ];
+        berthZone = { x: -25, y: 80, w: 50, h: 80, snapX: 500, snapY: 120, snapH: 0 };
+      } else {
+        switch (controlsRef.current.jettyType) {
+          case 'straight': 
+            jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: 40, y: 80, w: 210, h: 40 }]; 
+            berthZone = { x: -80, y: 20, w: 70, h: 160, snapX: 460, snapY: 150, snapH: 0 };
+            break;
+          case 'l-shape': 
+            jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: -100, y: 0, w: 100, h: 40 }, { x: 40, y: 80, w: 210, h: 40 }]; 
+            berthZone = { x: -80, y: 40, w: 80, h: 140, snapX: 460, snapY: 150, snapH: 0 };
+            break;
+          case 'u-shape': 
+            jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: -100, y: 0, w: 100, h: 40 }, { x: -100, y: 160, w: 100, h: 40 }, { x: 40, y: 80, w: 210, h: 40 }]; 
+            berthZone = { x: -100, y: 40, w: 100, h: 120, snapX: 450, snapY: 150, snapH: 0 };
+            break;
+          case 't-shape': 
+            jettyRects = [{ x: -40, y: 80, w: 80, h: 40 }, { x: -80, y: -40, w: 40, h: 280 }, { x: 40, y: 80, w: 210, h: 40 }]; 
+            berthZone = { x: -150, y: 20, w: 60, h: 160, snapX: 390, snapY: 150, snapH: 0 };
+            break;
+        }
       }
       
       for (const rect of jettyRects) {
@@ -1585,8 +1606,22 @@ export default function ShipSim() {
       if (!collision) {
         if (portMode === 'pasadena') {
           // Exact diagonal channel boundary collision for Deer Lake (Pasadena map)
-          const minChannelY = -newX + 250 + shipRadius;
-          const maxChannelY = -newX + 850 - shipRadius;
+          // NW Shore is at y = -x - 400
+          const minChannelY = -newX - 400 + shipRadius;
+          
+          // SE Shore is at y = -x + 1350 with the Pasadena peninsula projection
+          let maxChannelY = -newX + 1350;
+          if (newX >= 600 && newX <= 800) {
+            const ratio = (newX - 600) / 200;
+            maxChannelY = ratio * (-newX + 1350) + (1 - ratio) * 250;
+          } else if (newX >= 400 && newX < 600) {
+            maxChannelY = 250; // flat harbor shore
+          } else if (newX >= 200 && newX < 400) {
+            const ratio = (400 - newX) / 200;
+            maxChannelY = ratio * (-newX + 1350) + (1 - ratio) * 250;
+          }
+          maxChannelY -= shipRadius;
+
           if (newY <= minChannelY || newY >= maxChannelY) {
             collision = true;
           }
@@ -2195,7 +2230,50 @@ export default function ShipSim() {
       ctx.fillStyle = '#78350f'; // amber-900 wood
       ctx.strokeStyle = '#451a03';
       
-      if (currentJettyType === 'straight') {
+      if (controlsRef.current.portMode === 'pasadena') {
+        // Draw Pasadena Cadet Nautical Site rock breakwaters (textured stone gray)
+        ctx.fillStyle = '#64748b'; // slate-500 rock gray
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 4;
+        
+        // Left Breakwater (curved pier)
+        ctx.beginPath();
+        ctx.moveTo(-80, 200);
+        ctx.lineTo(-80, 70);
+        ctx.bezierCurveTo(-80, 45, -50, 45, -35, 45);
+        ctx.lineTo(-35, 60);
+        ctx.bezierCurveTo(-50, 60, -60, 60, -60, 70);
+        ctx.lineTo(-60, 200);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Right Breakwater (curved pier)
+        ctx.beginPath();
+        ctx.moveTo(80, 200);
+        ctx.lineTo(80, 70);
+        ctx.bezierCurveTo(80, 45, 50, 45, 35, 45);
+        ctx.lineTo(35, 60);
+        ctx.bezierCurveTo(50, 60, 60, 60, 60, 70);
+        ctx.lineTo(60, 200);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Draw floating finger docks (wood texture)
+        ctx.fillStyle = '#78350f'; // amber-900 wood
+        ctx.strokeStyle = '#451a03';
+        ctx.lineWidth = 1.5;
+
+        // Left finger pier
+        ctx.fillRect(-35, 80, 8, 80);
+        ctx.strokeRect(-35, 80, 8, 80);
+
+        // Right finger pier
+        ctx.fillRect(27, 80, 8, 80);
+        ctx.strokeRect(27, 80, 8, 80);
+        
+      } else if (currentJettyType === 'straight') {
         ctx.fillRect(0, 0, 40, 200);
         ctx.strokeRect(0, 0, 40, 200);
         ctx.fillRect(40, 80, 210, 40);
