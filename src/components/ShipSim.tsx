@@ -681,6 +681,11 @@ export default function ShipSim() {
       // Draw waves
       renderer.drawWaves(ctx, canvas.width, canvas.height, camX, camY);
 
+      // Draw mainland shoreline for home/random map modes
+      if (currentStore.portMode === 'home' || currentStore.portMode === 'random') {
+        renderer.drawMainland(ctx, canvas.width, canvas.height, camX, camY);
+      }
+
       // Draw dock site boundary limits
       ctx.save();
       ctx.translate(canvas.width / 2 - camX, canvas.height / 2 - camY);
@@ -914,7 +919,7 @@ export default function ShipSim() {
           />
         </ControlPortal>
       ) : (
-        <div className="absolute top-24 left-8 z-20">
+        <div className="absolute top-24 right-8 z-20">
           <RealismSettings 
             isPopped={false} 
             setIsSettingsPoppedOut={setIsSettingsPoppedOut} 
@@ -987,7 +992,7 @@ export default function ShipSim() {
 
       {/* Easter Egg Helicopter Objective Details */}
       {simMode === 'heli' && (
-        <div className="absolute top-24 right-8 bg-slate-900/90 p-4 rounded-lg border-2 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)] z-20 w-72 pointer-events-none">
+        <div className="absolute top-24 left-8 bg-slate-900/90 p-4 rounded-lg border-2 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)] z-20 w-72 pointer-events-none">
            <h3 className="text-emerald-400 font-bold mb-2 tracking-widest flex items-center gap-2">
              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
              EASTER EGG MISSION

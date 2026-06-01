@@ -33,7 +33,7 @@ let windSpeed = 0;
 let windDir = 0;
 let currentSpeed = 0;
 let currentDir = 90;
-let portMode: 'home' | 'random' | 'pasadena' = 'home';
+let portMode: 'home' | 'random' | 'pasadena' | 'custom' = 'home';
 let shipClass = 'patrol';
 let damageEnabled = false;
 let anchorDropped = false;
@@ -209,6 +209,18 @@ const startPhysicsTick = () => {
 
         if (newY <= minChannelY || newY >= maxChannelY) {
           collision = true;
+        }
+      } else if (portMode === 'custom') {
+        // Dynamic map, skip the default right-hand wall boundary check!
+        for (const island of islands) {
+          let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+          island.points.forEach(p => {
+            if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0];
+            if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1];
+          });
+          const testX = Math.max(minX, Math.min(newX, maxX));
+          const testY = Math.max(minY, Math.min(newY, maxY));
+          if (Math.hypot(newX - testX, newY - testY) <= shipRadius) { collision = true; break; }
         }
       } else {
         if (newX > dockWorldX + 250 - shipRadius) {

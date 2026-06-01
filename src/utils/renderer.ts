@@ -702,3 +702,38 @@ export const drawHelicopter = (
   
   ctx.restore();
 };
+
+export const drawMainland = (
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  camX: number,
+  camY: number
+) => {
+  ctx.save();
+  ctx.translate(width / 2 - camX, height / 2 - camY);
+  
+  ctx.beginPath();
+  ctx.moveTo(250, -4000);
+  for (let y = -4000; y <= 4000; y += 100) {
+    // Procedural sine waves for irregular coast
+    const xOffset = Math.sin(y * 0.01) * 40 + Math.sin(y * 0.05) * 15;
+    ctx.lineTo(250 + xOffset, y);
+  }
+  ctx.lineTo(4250, 4000);
+  ctx.lineTo(4250, -4000);
+  ctx.closePath();
+  
+  ctx.lineWidth = 15;
+  ctx.strokeStyle = '#1e3a8a'; // deep blue shallow edge
+  ctx.stroke();
+  
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = '#fcd34d'; // beach edge (amber-300 matches islands!)
+  ctx.stroke();
+  
+  ctx.fillStyle = '#166534'; // green land (green-800 matches islands!)
+  ctx.fill();
+  
+  ctx.restore();
+};
