@@ -250,6 +250,9 @@ export default function RealismSettings({
               <div className="text-xs text-slate-400 font-mono border-b border-slate-900 pb-1 uppercase tracking-widest font-bold">
                 🗺️ Custom Map GeoJSON
               </div>
+              <div className="text-[10px] text-emerald-400 font-mono leading-relaxed bg-slate-900/50 p-2 rounded border border-emerald-950/40">
+                💡 Make sure <strong>"Custom GeoJSON Map"</strong> is selected in the top-left map dropdown. Once selected, uploading a GeoJSON file with island/shoreline polygons will render the custom map instantly.
+              </div>
               
               <div>
                 <label className="block text-[10px] text-slate-400 font-mono mb-1">REFERENCE LATITUDE</label>

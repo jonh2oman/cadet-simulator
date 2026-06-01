@@ -275,6 +275,7 @@ export default function ShipSim() {
 
   // Sync islands list to physics worker when map loads
   useEffect(() => {
+    islandsRef.current = islands;
     if (physicsWorkerRef.current) {
       physicsWorkerRef.current.postMessage({
         type: 'set_islands',
@@ -753,7 +754,23 @@ export default function ShipSim() {
 
          ctx.restore();
       } else {
-         // Deer Lake / home maps breakwater straight jetties
+          // Draw gangway connecting floating jetty to the mainland shore (at x = 750)
+          ctx.fillStyle = '#475569'; // concrete border
+          ctx.fillRect(dockWorldX, dockWorldY + 20, 250, 18);
+          ctx.fillStyle = '#d97706'; // wood walkway interior
+          ctx.fillRect(dockWorldX + 2, dockWorldY + 22, 246, 14);
+          
+          // Handrails
+          ctx.strokeStyle = '#1e293b';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(dockWorldX, dockWorldY + 20);
+          ctx.lineTo(dockWorldX + 250, dockWorldY + 20);
+          ctx.moveTo(dockWorldX, dockWorldY + 38);
+          ctx.lineTo(dockWorldX + 250, dockWorldY + 38);
+          ctx.stroke();
+
+          // Deer Lake / home maps breakwater straight jetties
          switch (currentStore.jettyType) {
            case 'straight':
              ctx.fillRect(dockWorldX - 10, dockWorldY, 20, 160);
@@ -829,6 +846,17 @@ export default function ShipSim() {
 
       // Draw active course checkpoints
       renderer.drawCourseGates(ctx, canvas.width, canvas.height, currentStore.activeCourse, camX, camY);
+
+      // Draw mooring lines if docked
+      renderer.drawMooringLines(
+        ctx,
+        canvas.width,
+        canvas.height,
+        camX,
+        camY,
+        currentStore.portMode,
+        currentStore.isDocked
+      );
 
       // Draw vessel
       renderer.drawShip(

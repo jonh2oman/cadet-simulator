@@ -1085,3 +1085,48 @@ export const drawMainland = (
   
   ctx.restore();
 };
+
+export const drawMooringLines = (
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  camX: number,
+  camY: number,
+  portMode: string,
+  isDocked: boolean
+) => {
+  if (!isDocked) return;
+
+  ctx.save();
+  ctx.translate(width / 2 - camX, height / 2 - camY);
+  
+  ctx.strokeStyle = '#d97706'; // amber-600 rope color
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 2]); // dashed rope style
+
+  ctx.beginPath();
+  if (portMode === 'pasadena') {
+    // Pasadena Coast slip docking: boat is centered at (500, 120)
+    // Left finger pier is at x = 473, right at 527.
+    // Left Bow
+    ctx.moveTo(492, 100); ctx.lineTo(473, 90);
+    // Left Stern
+    ctx.moveTo(492, 150); ctx.lineTo(473, 140);
+    // Right Bow
+    ctx.moveTo(508, 100); ctx.lineTo(527, 90);
+    // Right Stern
+    ctx.moveTo(508, 150); ctx.lineTo(527, 140);
+  } else {
+    // Home or Random map straight/L/T/U docking: boat is snapped at (460, 150)
+    // Jetty is at x = 500, left edge is at 490.
+    // Bow line
+    ctx.moveTo(460, 110); ctx.lineTo(490, 70);
+    // Stern line
+    ctx.moveTo(460, 190); ctx.lineTo(490, 190);
+    // Spring lines
+    ctx.moveTo(460, 130); ctx.lineTo(490, 170);
+    ctx.moveTo(460, 170); ctx.lineTo(490, 130);
+  }
+  ctx.stroke();
+  ctx.restore();
+};
