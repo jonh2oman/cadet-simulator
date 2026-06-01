@@ -1583,19 +1583,28 @@ export default function ShipSim() {
 
       // Island & Mainland hitboxes
       if (!collision) {
-        if (newX > dockWorldX + 250 - shipRadius) {
-          collision = true;
+        if (portMode === 'pasadena') {
+          // Exact diagonal channel boundary collision for Deer Lake (Pasadena map)
+          const minChannelY = -newX + 250 + shipRadius;
+          const maxChannelY = -newX + 850 - shipRadius;
+          if (newY <= minChannelY || newY >= maxChannelY) {
+            collision = true;
+          }
         } else {
-          for (const island of islandsRef.current) {
-            // Approximate island with bounding box for simplicity
-            let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
-            island.points.forEach(p => {
-              if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0];
-              if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1];
-            });
-            const testX = Math.max(minX, Math.min(newX, maxX));
-            const testY = Math.max(minY, Math.min(newY, maxY));
-            if (Math.hypot(newX - testX, newY - testY) <= shipRadius) { collision = true; break; }
+          if (newX > dockWorldX + 250 - shipRadius) {
+            collision = true;
+          } else {
+            for (const island of islandsRef.current) {
+              // Approximate island with bounding box for simplicity
+              let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
+              island.points.forEach(p => {
+                if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0];
+                if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1];
+              });
+              const testX = Math.max(minX, Math.min(newX, maxX));
+              const testY = Math.max(minY, Math.min(newY, maxY));
+              if (Math.hypot(newX - testX, newY - testY) <= shipRadius) { collision = true; break; }
+            }
           }
         }
       }
