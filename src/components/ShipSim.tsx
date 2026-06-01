@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import ControlPortal from './ControlPortal';
+import { useSimStore } from '../store/simStore';
 
 const HorizontalThrusterLever = ({ label, value, onChange }: { label: string, value: number, onChange: (val: number) => void }) => {
   const [isDragging, setIsDragging] = useState(false);
@@ -163,7 +164,6 @@ export default function ShipSim() {
   const prevPosRef = useRef({ x: 460, y: 150 });
   const [isControlsPoppedOut, setIsControlsPoppedOut] = useState<boolean>(false);
   const [isSettingsPoppedOut, setIsSettingsPoppedOut] = useState<boolean>(false);
-  const [engineSoundOn, setEngineSoundOn] = useState<boolean>(true);
   const [musicPlaying, setMusicPlaying] = useState<boolean>(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const engineNodeRef = useRef<{
@@ -250,28 +250,32 @@ export default function ShipSim() {
 
 
 
-  // Engine & System controls
-  const [throttle, setThrottle] = useState(0); // -100 to 100
-  const [rudder, setRudder] = useState(0); // -45 to 45
-  const [bowThruster, setBowThruster] = useState(0); // -100 to 100
-  const [sternThruster, setSternThruster] = useState(0); // -100 to 100
-  const [navLightsOn, setNavLightsOn] = useState(true);
-  const [whiteLightsOn, setWhiteLightsOn] = useState(true);
-  const [anchorDropped, setAnchorDropped] = useState(false);
+  // Engine, System, and Realism controls synced via Zustand cross-window store
+  const {
+    throttle, setThrottle,
+    rudder, setRudder,
+    bowThruster, setBowThruster,
+    sternThruster, setSternThruster,
+    navLightsOn, setNavLightsOn,
+    whiteLightsOn, setWhiteLightsOn,
+    anchorDropped, setAnchorDropped,
+    windSpeed, setWindSpeed,
+    windDir, setWindDir,
+    currentSpeed, setCurrentSpeed,
+    currentDir, setCurrentDir,
+    jettyType, setJettyType,
+    shipClass, setShipClass,
+    damageEnabled, setDamageEnabled,
+    portMode, setPortMode,
+    shipDamage, setShipDamage,
+    isDocked, setIsDocked,
+    simMode, setSimMode,
+    engineSoundOn, setEngineSoundOn
+  } = useSimStore();
 
-  // Realism controls
-  const [windSpeed, setWindSpeed] = useState(0); // 0-30 knots
-  const [windDir, setWindDir] = useState(0); // 0-359 degrees
-  const [currentSpeed, setCurrentSpeed] = useState(0); // 0-5 knots
-  const [currentDir, setCurrentDir] = useState(90); // 0-359 degrees
-  const [jettyType, setJettyType] = useState('straight');
-  const [shipClass, setShipClass] = useState('patrol');
-  const [envExpanded, setEnvExpanded] = useState(true);
-  const [damageEnabled, setDamageEnabled] = useState(false);
-  const [portMode, setPortMode] = useState<'home'|'random'|'pasadena'>('home');
   const [islands, setIslands] = useState<Array<{points: number[][]}>>([]);
+  const [envExpanded, setEnvExpanded] = useState(true);
   const islandsRef = useRef<Array<{points: number[][]}>>([]);
-  const [shipDamage, setShipDamage] = useState(0);
   
   const physicsWorkerRef = useRef<Worker | null>(null);
 
@@ -399,7 +403,6 @@ export default function ShipSim() {
   }, [portMode]);
 
   const [showWelcome, setShowWelcome] = useState(true);
-  const [isDocked, setIsDocked] = useState(false);
   const [canTieUp, setCanTieUp] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
 
@@ -429,7 +432,6 @@ export default function ShipSim() {
   const tieUpDataRef = useRef({ snapX: 460, snapY: 150, snapH: 0 });
   
   // Helicopter Sidequest States (Simplified for Sea Cadets)
-  const [simMode, setSimMode] = useState<'ship' | 'heli'>('ship');
   const [heliAltitude, setHeliAltitude] = useState(0); // 0 to 100 feet
   const [heliSpeed, setHeliSpeed] = useState(0); // -10 to 30 knots
   const [missionAccomplished, setMissionAccomplished] = useState(false);
