@@ -670,6 +670,35 @@ export function useShipAudio({
     return () => stopMusic();
   }, [musicPlaying]);
 
+  // Resume AudioContext on first user interaction to bypass browser autoplay policy
+  useEffect(() => {
+    const resumeAudio = () => {
+      const ctx = getAudioContext();
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(() => {
+          updateEngineSound();
+          if (musicPlayingRef.current) {
+            stopMusic();
+            playShantyLoop(0);
+          }
+        });
+      } else {
+        updateEngineSound();
+      }
+      // Remove listeners once we've successfully attempted to resume
+      window.removeEventListener('pointerdown', resumeAudio);
+      window.removeEventListener('keydown', resumeAudio);
+    };
+
+    window.addEventListener('pointerdown', resumeAudio);
+    window.addEventListener('keydown', resumeAudio);
+
+    return () => {
+      window.removeEventListener('pointerdown', resumeAudio);
+      window.removeEventListener('keydown', resumeAudio);
+    };
+  }, []);
+
   return {
     playBeep,
     startHorn,
