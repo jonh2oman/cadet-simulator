@@ -307,7 +307,7 @@ export default function ShipSim() {
     navLightsOn: true, whiteLightsOn: false, anchorDropped: false,
     windSpeed: 0, windDir: 0, currentSpeed: 0, currentDir: 90, jettyType: 'straight',
     showPortBuoy: true, showStbdBuoy: true, shipClass: 'patrol', damageEnabled: false, portMode: 'home',
-    isDocked: false, simMode: 'ship'
+    isDocked: false, simMode: 'ship', engineSoundOn: true
   });
   
   // Heli Physics State
@@ -326,11 +326,11 @@ export default function ShipSim() {
     controlsRef.current = {
       throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, anchorDropped,
       windSpeed, windDir, currentSpeed, currentDir, jettyType,
-      showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode
+      showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode, engineSoundOn
     };
     heliControlsRef.current.altitude = heliAltitude;
     heliControlsRef.current.speed = heliSpeed;
-  }, [throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, anchorDropped, windSpeed, windDir, currentSpeed, currentDir, jettyType, showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode, heliAltitude, heliSpeed]);
+  }, [throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, anchorDropped, windSpeed, windDir, currentSpeed, currentDir, jettyType, showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode, heliAltitude, heliSpeed, engineSoundOn]);
 
   const getAudioContext = () => {
     if (!audioCtxRef.current) {
@@ -1329,7 +1329,7 @@ export default function ShipSim() {
 
       // Update physics
       const state = shipState.current;
-      const { throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, windSpeed, windDir, currentSpeed, currentDir, shipClass } = controlsRef.current;
+      const { throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, windSpeed, windDir, currentSpeed, currentDir, shipClass, simMode, engineSoundOn } = controlsRef.current;
       
       // Update engine sound continuously based on actual underway speed
       if (audioCtxRef.current && engineNodeRef.current && engineSoundOn) {
