@@ -281,10 +281,17 @@ export default function ShipSim() {
   const [shipClass, setShipClass] = useState('patrol');
   const [envExpanded, setEnvExpanded] = useState(true);
   const [damageEnabled, setDamageEnabled] = useState(false);
-  const [portMode, setPortMode] = useState<'home'|'random'>('home');
+  const [portMode, setPortMode] = useState<'home'|'random'|'pasadena'>('home');
   const [, setIslands] = useState<Array<{points: number[][]}>>([]);
   const islandsRef = useRef<Array<{points: number[][]}>>([]);
   const [shipDamage, setShipDamage] = useState(0);
+  
+  useEffect(() => {
+    if (portMode === 'pasadena') {
+      setShipClass('zodiac');
+    }
+  }, [portMode]);
+
   const [showWelcome, setShowWelcome] = useState(true);
   const [isDocked, setIsDocked] = useState(false);
   const [canTieUp, setCanTieUp] = useState(false);
@@ -1007,6 +1014,34 @@ export default function ShipSim() {
       ];
       setIslands(homeIslands);
       islandsRef.current = homeIslands;
+    } else if (portMode === 'pasadena') {
+      const nwPoints: number[][] = [];
+      const sePoints: number[][] = [];
+      
+      // Generate NW Shore (y = -x + 250)
+      for (let x = -2500; x <= 2500; x += 200) {
+        const baseY = -x + 250;
+        const noiseX = (Math.random() - 0.5) * 45;
+        const noiseY = (Math.random() - 0.5) * 45;
+        nwPoints.push([x + noiseX, baseY + noiseY]);
+      }
+      nwPoints.push([2500, -2500], [-2500, -2500]);
+      
+      // Generate SE Shore (y = -x + 850)
+      for (let x = 2500; x >= -2500; x -= 200) {
+        const baseY = -x + 850;
+        const noiseX = (Math.random() - 0.5) * 45;
+        const noiseY = (Math.random() - 0.5) * 45;
+        sePoints.push([x + noiseX, baseY + noiseY]);
+      }
+      sePoints.push([-2500, 2500], [2500, 2500]);
+      
+      const pasadenaIslands = [
+        { points: nwPoints },
+        { points: sePoints }
+      ];
+      setIslands(pasadenaIslands);
+      islandsRef.current = pasadenaIslands;
     } else {
       const newIslands = [];
       for(let i=0; i<4; i++) {
@@ -1835,6 +1870,42 @@ export default function ShipSim() {
         ctx.restore();
       });
 
+      // Draw Pasadena site labels
+      if (controlsRef.current.portMode === 'pasadena') {
+        const labels = [
+          { name: 'LITTLE RAPIDS', x: -1500, y: 1750 },
+          { name: 'PASADENA Yacht Club', x: 500, y: 380 },
+          { name: 'PYNN\'S BROOK', x: 0, y: 250 },
+          { name: 'SAINT JUDES', x: 600, y: -350 },
+          { name: 'LAKE SIDING', x: 1200, y: -950 },
+          { name: 'NICHOLSVILLE / DEER LAKE', x: 1800, y: -1550 }
+        ];
+
+        ctx.save();
+        ctx.translate(canvas.width / 2 - camX, canvas.height / 2 - camY);
+        
+        labels.forEach(label => {
+          // Draw a small icon/dot for the station
+          ctx.fillStyle = '#f59e0b'; // Amber-500
+          ctx.beginPath();
+          ctx.arc(label.x, label.y, 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Labeled text
+          ctx.font = 'bold 11px monospace';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          
+          // Draw subtle drop shadow text
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+          ctx.fillText(label.name, label.x + 8, label.y + 1);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+          ctx.fillText(label.name, label.x + 8, label.y);
+        });
+
+        ctx.restore();
+      }
+
       // Draw particles (wake and stack smoke)
       particlesRef.current = particlesRef.current.filter(p => p.life > 0);
       
@@ -2656,9 +2727,9 @@ export default function ShipSim() {
             className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-slate-200 font-mono outline-none mb-2"
           >
             <option value="zodiac">Zodiac</option>
-            <option value="patrol">Patrol Boat</option>
-            <option value="corvette">Corvette</option>
-            <option value="frigate">Frigate</option>
+            <option value="patrol" disabled={portMode === 'pasadena'}>Patrol Boat {portMode === 'pasadena' && '(LOCKED)'}</option>
+            <option value="corvette" disabled={portMode === 'pasadena'}>Corvette {portMode === 'pasadena' && '(LOCKED)'}</option>
+            <option value="frigate" disabled={portMode === 'pasadena'}>Frigate {portMode === 'pasadena' && '(LOCKED)'}</option>
           </select>
           
           <div className="glass-panel-inner rounded-xl p-3 mt-2 text-xs font-mono">
@@ -2802,18 +2873,24 @@ export default function ShipSim() {
         <div>
           <div className="text-xs text-slate-400 font-mono mb-2">SCENARIO OPTIONS</div>
           
-          <div className="flex gap-2 mb-3 bg-slate-950 p-1 rounded border border-slate-700">
+          <div className="flex gap-1 mb-3 bg-slate-950 p-1 rounded border border-slate-700">
             <button 
               onClick={() => setPortMode('home')}
-              className={`flex-1 px-2 py-1 text-xs font-mono rounded ${portMode === 'home' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'}`}
+              className={`flex-1 px-1 py-1 text-[10px] font-bold font-mono rounded ${portMode === 'home' ? 'bg-amber-600 text-white shadow-[0_0_8px_rgba(217,119,6,0.3)]' : 'text-slate-400 hover:text-white'}`}
             >
               HOME PORT
             </button>
             <button 
               onClick={() => setPortMode('random')}
-              className={`flex-1 px-2 py-1 text-xs font-mono rounded ${portMode === 'random' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'}`}
+              className={`flex-1 px-1 py-1 text-[10px] font-bold font-mono rounded ${portMode === 'random' ? 'bg-amber-600 text-white shadow-[0_0_8px_rgba(217,119,6,0.3)]' : 'text-slate-400 hover:text-white'}`}
             >
               RANDOM
+            </button>
+            <button 
+              onClick={() => setPortMode('pasadena')}
+              className={`flex-1 px-1 py-1 text-[10px] font-bold font-mono rounded ${portMode === 'pasadena' ? 'bg-amber-600 text-white shadow-[0_0_8px_rgba(217,119,6,0.3)]' : 'text-slate-400 hover:text-white'}`}
+            >
+              PASADENA
             </button>
           </div>
 
