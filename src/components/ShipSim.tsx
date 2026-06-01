@@ -211,16 +211,20 @@ export default function ShipSim() {
 
   const startCourse = (course: Course | null) => {
     const state = shipState.current;
-    state.x = 460;
-    state.y = 150;
+    const isPasadena = controlsRef.current.portMode === 'pasadena';
+    const startX = isPasadena ? 500 : 460;
+    const startY = isPasadena ? 120 : 150;
+    state.x = startX;
+    state.y = startY;
     state.heading = 0;
     state.speed = 0;
-    prevPosRef.current = { x: 460, y: 150 };
+    prevPosRef.current = { x: startX, y: startY };
     setThrottle(0);
     setRudder(0);
     setBowThruster(0);
     setSternThruster(0);
     setIsDocked(false);
+    tieUpDataRef.current = { snapX: startX, snapY: startY, snapH: 0 };
 
     if (course) {
       const clonedCourse = {
@@ -289,6 +293,31 @@ export default function ShipSim() {
   useEffect(() => {
     if (portMode === 'pasadena') {
       setShipClass('zodiac');
+      const state = shipState.current;
+      state.x = 500;
+      state.y = 120;
+      state.heading = 0;
+      state.speed = 0;
+      prevPosRef.current = { x: 500, y: 120 };
+      setThrottle(0);
+      setRudder(0);
+      setBowThruster(0);
+      setSternThruster(0);
+      setIsDocked(false);
+      tieUpDataRef.current = { snapX: 500, snapY: 120, snapH: 0 };
+    } else {
+      const state = shipState.current;
+      state.x = 460;
+      state.y = 150;
+      state.heading = 0;
+      state.speed = 0;
+      prevPosRef.current = { x: 460, y: 150 };
+      setThrottle(0);
+      setRudder(0);
+      setBowThruster(0);
+      setSternThruster(0);
+      setIsDocked(false);
+      tieUpDataRef.current = { snapX: 460, snapY: 150, snapH: 0 };
     }
   }, [portMode]);
 
@@ -1018,32 +1047,32 @@ export default function ShipSim() {
       const nwPoints: number[][] = [];
       const sePoints: number[][] = [];
       
-      // Generate NW Shore (y = -x - 400) - Much wider channel
-      for (let x = -2500; x <= 2500; x += 150) {
-        const baseY = -x - 400;
+      // Generate NW Shore (y = -x - 1500) - Much wider channel
+      for (let x = -3000; x <= 3000; x += 150) {
+        const baseY = -x - 1500;
         const noiseX = (Math.random() - 0.5) * 35;
         const noiseY = (Math.random() - 0.5) * 35;
         nwPoints.push([x + noiseX, baseY + noiseY]);
       }
-      nwPoints.push([2500, -2500], [-2500, -2500]);
+      nwPoints.push([3000, -3000], [-3000, -3000]);
       
-      // Generate SE Shore (y = -x + 1350) with custom Pasadena Cadet Yacht Club harbor peninsula
-      for (let x = 2500; x >= -2500; x -= 100) {
-        let baseY = -x + 1350;
+      // Generate SE Shore (y = -x + 2200) with custom Pasadena Cadet Yacht Club harbor peninsula
+      for (let x = 3000; x >= -3000; x -= 100) {
+        let baseY = -x + 2200;
         if (x >= 600 && x <= 800) {
           const ratio = (x - 600) / 200;
-          baseY = ratio * (-x + 1350) + (1 - ratio) * 250; // Meets the back of the jetty breakwaters
+          baseY = ratio * (-x + 2200) + (1 - ratio) * 250; // Meets the back of the jetty breakwaters
         } else if (x >= 400 && x < 600) {
           baseY = 250; // flat shore at harbor entrance back
         } else if (x >= 200 && x < 400) {
           const ratio = (400 - x) / 200;
-          baseY = ratio * (-x + 1350) + (1 - ratio) * 250;
+          baseY = ratio * (-x + 2200) + (1 - ratio) * 250;
         }
         const noiseX = (Math.random() - 0.5) * 25;
         const noiseY = (Math.random() - 0.5) * 25;
         sePoints.push([x + noiseX, baseY + noiseY]);
       }
-      sePoints.push([-2500, 2500], [2500, 2500]);
+      sePoints.push([-3000, 3000], [3000, 3000]);
       
       const pasadenaIslands = [
         { points: nwPoints },
@@ -1566,14 +1595,12 @@ export default function ShipSim() {
       
       if (portMode === 'pasadena') {
         jettyRects = [
-          { x: -80, y: 60, w: 25, h: 140 }, // Left breakwater main
-          { x: -55, y: 40, w: 25, h: 30 },  // Left breakwater curve tip
-          { x: 55, y: 60, w: 25, h: 140 },  // Right breakwater main
-          { x: 30, y: 40, w: 25, h: 30 },   // Right breakwater curve tip
-          { x: -35, y: 80, w: 8, h: 80 },   // Left floating finger dock
-          { x: 27, y: 80, w: 8, h: 80 }     // Right floating finger dock
+          { x: -130, y: 45, w: 20, h: 155 }, // Left straight breakwater
+          { x: 110, y: 45, w: 20, h: 155 },  // Right straight breakwater
+          { x: -35, y: 80, w: 8, h: 80 },    // Left floating finger dock
+          { x: 27, y: 80, w: 8, h: 80 }      // Right floating finger dock
         ];
-        berthZone = { x: -25, y: 80, w: 50, h: 80, snapX: 500, snapY: 120, snapH: 0 };
+        berthZone = { x: -27, y: 80, w: 54, h: 80, snapX: 500, snapY: 120, snapH: 0 };
       } else {
         switch (controlsRef.current.jettyType) {
           case 'straight': 
@@ -1606,19 +1633,19 @@ export default function ShipSim() {
       if (!collision) {
         if (portMode === 'pasadena') {
           // Exact diagonal channel boundary collision for Deer Lake (Pasadena map)
-          // NW Shore is at y = -x - 400
-          const minChannelY = -newX - 400 + shipRadius;
+          // NW Shore is at y = -x - 1500
+          const minChannelY = -newX - 1500 + shipRadius;
           
-          // SE Shore is at y = -x + 1350 with the Pasadena peninsula projection
-          let maxChannelY = -newX + 1350;
+          // SE Shore is at y = -x + 2200 with the Pasadena peninsula projection
+          let maxChannelY = -newX + 2200;
           if (newX >= 600 && newX <= 800) {
             const ratio = (newX - 600) / 200;
-            maxChannelY = ratio * (-newX + 1350) + (1 - ratio) * 250;
+            maxChannelY = ratio * (-newX + 2200) + (1 - ratio) * 250;
           } else if (newX >= 400 && newX < 600) {
             maxChannelY = 250; // flat harbor shore
           } else if (newX >= 200 && newX < 400) {
             const ratio = (400 - newX) / 200;
-            maxChannelY = ratio * (-newX + 1350) + (1 - ratio) * 250;
+            maxChannelY = ratio * (-newX + 2200) + (1 - ratio) * 250;
           }
           maxChannelY -= shipRadius;
 
@@ -2163,32 +2190,33 @@ export default function ShipSim() {
       const dockX = 500 - camX + canvas.width / 2;
       const dockY = 50 - camY + canvas.height / 2;
       
-      // Draw Mainland continent attached to the right side of the dock
       ctx.save();
       ctx.translate(dockX, dockY);
       
-      // Organic curved coastline
-      ctx.beginPath();
-      ctx.moveTo(250, -4000);
-      for(let y = -4000; y <= 4000; y += 100) {
-        // Procedural sine waves for irregular coast
-        const xOffset = Math.sin(y * 0.01) * 40 + Math.sin(y * 0.05) * 15;
-        ctx.lineTo(250 + xOffset, y);
+      // Draw Mainland continent attached to the right side of the dock
+      if (controlsRef.current.portMode !== 'pasadena') {
+        ctx.beginPath();
+        ctx.moveTo(250, -4000);
+        for(let y = -4000; y <= 4000; y += 100) {
+          // Procedural sine waves for irregular coast
+          const xOffset = Math.sin(y * 0.01) * 40 + Math.sin(y * 0.05) * 15;
+          ctx.lineTo(250 + xOffset, y);
+        }
+        ctx.lineTo(4250, 4000);
+        ctx.lineTo(4250, -4000);
+        ctx.closePath();
+        
+        ctx.lineWidth = 15;
+        ctx.strokeStyle = '#1e3a8a'; // deep blue shallow edge
+        ctx.stroke();
+        
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = '#b45309'; // beach edge
+        ctx.stroke();
+        
+        ctx.fillStyle = '#166534'; // green land
+        ctx.fill();
       }
-      ctx.lineTo(4250, 4000);
-      ctx.lineTo(4250, -4000);
-      ctx.closePath();
-      
-      ctx.lineWidth = 15;
-      ctx.strokeStyle = '#1e3a8a'; // deep blue shallow edge
-      ctx.stroke();
-      
-      ctx.lineWidth = 5;
-      ctx.strokeStyle = '#b45309'; // beach edge
-      ctx.stroke();
-      
-      ctx.fillStyle = '#166534'; // green land
-      ctx.fill();
 
       // Draw Berthing Zone Outline
       if (!controlsRef.current.isDocked) {
@@ -2231,47 +2259,171 @@ export default function ShipSim() {
       ctx.strokeStyle = '#451a03';
       
       if (controlsRef.current.portMode === 'pasadena') {
-        // Draw Pasadena Cadet Nautical Site rock breakwaters (textured stone gray)
-        ctx.fillStyle = '#64748b'; // slate-500 rock gray
-        ctx.strokeStyle = '#475569';
-        ctx.lineWidth = 4;
+        // 1. Draw Sandy Gravel Beach
+        ctx.fillStyle = '#cbd5e1'; // sandy gravel/slate-300
+        ctx.beginPath();
+        ctx.moveTo(-600, 200);
+        ctx.lineTo(600, 200);
+        ctx.lineTo(600, 420);
+        ctx.lineTo(-600, 420);
+        ctx.closePath();
+        ctx.fill();
+
+        // 2. Draw Forest background behind the beach
+        ctx.fillStyle = '#15803d'; // green-700
+        ctx.beginPath();
+        ctx.moveTo(-600, 260);
+        ctx.lineTo(600, 260);
+        ctx.lineTo(600, 420);
+        ctx.lineTo(-600, 420);
+        ctx.closePath();
+        ctx.fill();
+
+        // Draw individual Pine Trees (textured conifer look)
+        ctx.fillStyle = '#14532d'; // green-900
+        const drawTree = (tx: number, ty: number) => {
+          ctx.beginPath();
+          ctx.moveTo(tx, ty);
+          ctx.lineTo(tx - 12, ty + 30);
+          ctx.lineTo(tx + 12, ty + 30);
+          ctx.closePath();
+          ctx.fill();
+          // Trunk
+          ctx.fillStyle = '#451a03';
+          ctx.fillRect(tx - 2, ty + 30, 4, 6);
+          ctx.fillStyle = '#14532d'; // restore
+        };
+        // Organic placement matching trees in photo
+        drawTree(-250, 240);
+        drawTree(-220, 230);
+        drawTree(-280, 255);
+        drawTree(-190, 245);
+        drawTree(210, 230);
+        drawTree(240, 220);
+        drawTree(270, 250);
+        drawTree(300, 235);
+        drawTree(330, 240);
+
+        // 3. Draw Cadet Nautical Site building (metal boathouse with dark gabled roof)
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetX = 3;
+        ctx.shadowOffsetY = 3;
         
-        // Left Breakwater (curved pier)
-        ctx.beginPath();
-        ctx.moveTo(-80, 200);
-        ctx.lineTo(-80, 70);
-        ctx.bezierCurveTo(-80, 45, -50, 45, -35, 45);
-        ctx.lineTo(-35, 60);
-        ctx.bezierCurveTo(-50, 60, -60, 60, -60, 70);
-        ctx.lineTo(-60, 200);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Right Breakwater (curved pier)
-        ctx.beginPath();
-        ctx.moveTo(80, 200);
-        ctx.lineTo(80, 70);
-        ctx.bezierCurveTo(80, 45, 50, 45, 35, 45);
-        ctx.lineTo(35, 60);
-        ctx.bezierCurveTo(50, 60, 60, 60, 60, 70);
-        ctx.lineTo(60, 200);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Draw floating finger docks (wood texture)
-        ctx.fillStyle = '#78350f'; // amber-900 wood
-        ctx.strokeStyle = '#451a03';
+        // Building walls
+        ctx.fillStyle = '#94a3b8'; // metal cladding
+        ctx.fillRect(160, 270, 75, 55);
+        ctx.strokeStyle = '#475569';
         ctx.lineWidth = 1.5;
+        ctx.strokeRect(160, 270, 75, 55);
+        
+        // Gabled Roof
+        ctx.fillStyle = '#1e293b'; // dark slate
+        ctx.beginPath();
+        ctx.moveTo(155, 295);
+        ctx.lineTo(197, 260);
+        ctx.lineTo(240, 295);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
 
-        // Left finger pier
-        ctx.fillRect(-35, 80, 8, 80);
-        ctx.strokeRect(-35, 80, 8, 80);
+        // Parked boat trailers & small racks
+        ctx.shadowColor = 'transparent';
+        ctx.fillStyle = '#64748b'; // trailer frame
+        ctx.fillRect(125, 295, 22, 6);
+        ctx.fillRect(125, 315, 22, 6);
+        ctx.fillStyle = '#dc2626'; // red boats
+        ctx.fillRect(128, 293, 14, 4);
+        ctx.fillRect(128, 313, 14, 4);
+        ctx.restore();
 
-        // Right finger pier
-        ctx.fillRect(27, 80, 8, 80);
-        ctx.strokeRect(27, 80, 8, 80);
+        // 4. Draw Riprap Textured Rock Breakwaters (as in the photo)
+        const drawRockBreakwater = (points: [number, number][]) => {
+          ctx.save();
+          // Draw base structural fill
+          ctx.beginPath();
+          ctx.moveTo(points[0][0], points[0][1]);
+          for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i][0], points[i][1]);
+          }
+          ctx.strokeStyle = '#475569';
+          ctx.lineWidth = 22;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.stroke();
+
+          // Overlay individual boulder rocks
+          for (let i = 0; i < points.length - 1; i++) {
+            const p1 = points[i];
+            const p2 = points[i+1];
+            const dx = p2[0] - p1[0];
+            const dy = p2[1] - p1[1];
+            const len = Math.hypot(dx, dy);
+            const steps = Math.ceil(len / 7);
+            for (let s = 0; s <= steps; s++) {
+              const t = s / steps;
+              const rx = p1[0] + dx * t;
+              const ry = p1[1] + dy * t;
+              
+              const ox = Math.sin(s * 7.1) * 3.5;
+              const oy = Math.cos(s * 3.7) * 3.5;
+              const r = 9 + Math.sin(s * 2.3) * 2.5;
+              
+              const shade = Math.floor(110 + Math.sin(s * 5.9) * 45);
+              ctx.fillStyle = `rgb(${shade}, ${shade + 4}, ${shade + 8})`;
+              ctx.strokeStyle = '#27272a';
+              ctx.lineWidth = 1;
+              
+              ctx.beginPath();
+              ctx.arc(rx + ox, ry + oy, r, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+              
+              // Light highlight on each rock boulder
+              ctx.fillStyle = 'rgba(255,255,255,0.18)';
+              ctx.beginPath();
+              ctx.arc(rx + ox - r * 0.3, ry + oy - r * 0.3, r * 0.35, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+          ctx.restore();
+        };
+
+        // Left Breakwater (straight, moved away from docks)
+        drawRockBreakwater([[-120, 200], [-120, 45]]);
+
+        // Right Breakwater (straight, moved away from docks)
+        drawRockBreakwater([[120, 200], [120, 45]]);
+
+        // 5. Draw White Floating Finger Piers with wooden decks
+        const drawFloatingDock = (x: number, y: number, w: number, h: number) => {
+          ctx.save();
+          // Draw white floating pontoon base
+          ctx.fillStyle = '#f8fafc'; // white/slate-50
+          ctx.strokeStyle = '#475569';
+          ctx.lineWidth = 1.5;
+          ctx.fillRect(x, y, w, h);
+          ctx.strokeRect(x, y, w, h);
+
+          // Draw wooden walkway insert
+          ctx.fillStyle = '#d97706'; // amber-600 wood tone
+          ctx.fillRect(x + 1.5, y + 2, w - 3, h - 4);
+
+          // Draw dark gangway connection to shore
+          ctx.fillStyle = '#475569';
+          ctx.fillRect(x + 1, 200, w - 2, -120 + y);
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillRect(x + 2, 200, w - 4, -120 + y);
+          
+          ctx.restore();
+        };
+
+        // Left Finger Pier
+        drawFloatingDock(-35, 80, 8, 80);
+
+        // Right Finger Pier
+        drawFloatingDock(27, 80, 8, 80);
         
       } else if (currentJettyType === 'straight') {
         ctx.fillRect(0, 0, 40, 200);
