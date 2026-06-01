@@ -16,7 +16,7 @@ export interface SimState {
   jettyType: string;
   shipClass: string;
   damageEnabled: boolean;
-  portMode: 'home' | 'random' | 'pasadena';
+  portMode: 'home' | 'random' | 'pasadena' | 'custom';
   isDocked: boolean;
   simMode: 'ship' | 'heli';
   engineSoundOn: boolean;
@@ -49,7 +49,7 @@ interface SimStore extends SimState {
   setJettyType: (v: StateSetter<string>) => void;
   setShipClass: (v: StateSetter<string>) => void;
   setDamageEnabled: (v: StateSetter<boolean>) => void;
-  setPortMode: (v: StateSetter<'home' | 'random' | 'pasadena'>) => void;
+  setPortMode: (v: StateSetter<'home' | 'random' | 'pasadena' | 'custom'>) => void;
   setIsDocked: (v: StateSetter<boolean>) => void;
   setSimMode: (v: StateSetter<'ship' | 'heli'>) => void;
   setEngineSoundOn: (v: StateSetter<boolean>) => void;

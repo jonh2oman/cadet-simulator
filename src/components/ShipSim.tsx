@@ -189,6 +189,8 @@ export default function ShipSim() {
       ];
       setIslands(pasadenaIslands);
       islandsRef.current = pasadenaIslands;
+    } else if (portMode === 'custom') {
+      // Do nothing, islands will be loaded and updated by the uploader in RealismSettings.tsx
     } else {
       const newIslands = [];
       for (let i = 0; i < 4; i++) {
@@ -845,6 +847,7 @@ export default function ShipSim() {
               <option value="home">Deer Lake (Home)</option>
               <option value="random">Open Bay (Random)</option>
               <option value="pasadena">Pasadena Coast</option>
+              <option value="custom">Custom GeoJSON Map</option>
             </select>
           </div>
           
@@ -907,6 +910,7 @@ export default function ShipSim() {
             customBuoysRef={customBuoysRef}
             playBeep={playBeep}
             shipState={shipState}
+            setIslands={setIslands}
           />
         </ControlPortal>
       ) : (
@@ -917,6 +921,7 @@ export default function ShipSim() {
             customBuoysRef={customBuoysRef}
             playBeep={playBeep}
             shipState={shipState}
+            setIslands={setIslands}
           />
         </div>
       )}

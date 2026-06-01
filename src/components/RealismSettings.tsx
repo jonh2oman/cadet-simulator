@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSimStore } from '../store/simStore';
 import { SHIP_SPECS } from '../config/constants';
+import { parseGeoJSONToIslands } from '../utils/mapLoader';
 
 interface RealismSettingsProps {
   isPopped: boolean;
@@ -8,6 +9,7 @@ interface RealismSettingsProps {
   customBuoysRef: React.MutableRefObject<Array<{ x: number; y: number; color: 'yellow' | 'green' | 'red' }>>;
   playBeep: (freq?: number, duration?: number) => void;
   shipState: React.MutableRefObject<{ x: number; y: number; heading: number; speed: number }>;
+  setIslands: (islands: Array<{points: number[][]}>) => void;
 }
 
 export default function RealismSettings({ 
@@ -15,7 +17,8 @@ export default function RealismSettings({
   setIsSettingsPoppedOut,
   customBuoysRef,
   playBeep,
-  shipState
+  shipState,
+  setIslands
 }: RealismSettingsProps) {
   const {
     windSpeed, setWindSpeed,
@@ -32,6 +35,42 @@ export default function RealismSettings({
   } = useSimStore();
 
   const [customBuoyColor, setCustomBuoyColor] = useState<'yellow' | 'green' | 'red'>('yellow');
+
+  // Custom GeoJSON Map States
+  const [refLat, setRefLat] = useState<number>(49.2367); // Default to Deer Lake center
+  const [refLon, setRefLon] = useState<number>(-122.9774);
+  const [scaleMeters, setScaleMeters] = useState<number>(1.0);
+  const [uploadedGeoJSON, setUploadedGeoJSON] = useState<any>(null);
+
+  // Dynamic projection effect
+  useEffect(() => {
+    if (portMode === 'custom') {
+      if (uploadedGeoJSON) {
+        const customIslands = parseGeoJSONToIslands(uploadedGeoJSON, refLat, refLon, scaleMeters);
+        setIslands(customIslands);
+      } else {
+        setIslands([]);
+      }
+    }
+  }, [uploadedGeoJSON, refLat, refLon, scaleMeters, portMode]);
+
+  const handleFileChange = (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        setUploadedGeoJSON(json);
+        playBeep(880, 0.2);
+      } catch (err) {
+        console.error("Failed to parse GeoJSON", err);
+        alert("Failed to parse GeoJSON file. Please check that it is valid JSON.");
+        playBeep(220, 0.3);
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const currentSpec = SHIP_SPECS[shipClass];
 
@@ -202,6 +241,66 @@ export default function RealismSettings({
             </button>
           </div>
         </div>
+
+        {/* Custom GeoJSON Map section */}
+        {portMode === 'custom' && (
+          <>
+            <div className="h-px w-full bg-slate-800 my-2"></div>
+            <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-800 space-y-3">
+              <div className="text-xs text-slate-400 font-mono border-b border-slate-900 pb-1 uppercase tracking-widest font-bold">
+                🗺️ Custom Map GeoJSON
+              </div>
+              
+              <div>
+                <label className="block text-[10px] text-slate-400 font-mono mb-1">REFERENCE LATITUDE</label>
+                <input 
+                  type="number" 
+                  step="0.0001" 
+                  value={refLat} 
+                  onChange={(e) => setRefLat(parseFloat(e.target.value) || 0)} 
+                  className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 font-mono outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-slate-400 font-mono mb-1">REFERENCE LONGITUDE</label>
+                <input 
+                  type="number" 
+                  step="0.0001" 
+                  value={refLon} 
+                  onChange={(e) => setRefLon(parseFloat(e.target.value) || 0)} 
+                  className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 font-mono outline-none"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-[10px] text-slate-400 font-mono mb-1">
+                  <span>SCALE MULTIPLIER</span>
+                  <span className="text-emerald-400">{scaleMeters.toFixed(1)}x</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0.1" 
+                  max="5.0" 
+                  step="0.1" 
+                  value={scaleMeters} 
+                  onChange={(e) => setScaleMeters(parseFloat(e.target.value))} 
+                  className="w-full accent-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-slate-400 font-mono mb-1">CHOOSE FILE</label>
+                <input 
+                  type="file" 
+                  accept=".json,.geojson" 
+                  onChange={handleFileChange} 
+                  className="w-full text-xs text-slate-400 font-mono file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer"
+                />
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Realism toggles */}
         <div className="h-px w-full bg-slate-800 my-2"></div>
