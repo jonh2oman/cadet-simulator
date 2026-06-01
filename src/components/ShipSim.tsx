@@ -841,7 +841,8 @@ export default function ShipSim() {
         currentStore.navLightsOn,
         currentStore.whiteLightsOn,
         currentStore.bowThruster,
-        currentStore.sternThruster
+        currentStore.sternThruster,
+        currentStore.rudder
       );
 
       // Draw detached helicopter
@@ -854,6 +855,10 @@ export default function ShipSim() {
       // Write direct UI values to HUD
       if (speedTextRef.current) {
         speedTextRef.current.innerText = (Math.abs(state.speed) * 10).toFixed(1) + ' kts';
+      }
+      const posDisplay = document.getElementById('pos-display');
+      if (posDisplay) {
+        posDisplay.innerText = `X: ${Math.round(state.x)} Y: ${Math.round(state.y)}`;
       }
       if (compassTextRef.current || compassCardRef.current) {
         let deg = Math.round(state.heading * (180 / Math.PI)) % 360;
@@ -889,6 +894,11 @@ export default function ShipSim() {
               <option value="pasadena">Pasadena Coast</option>
               <option value="custom">Custom GeoJSON Map</option>
             </select>
+          </div>
+
+          <div className="glass-panel px-4 py-2 flex items-center gap-2 pointer-events-auto">
+            <span className="text-[10px] font-mono text-slate-400">POS:</span>
+            <span id="pos-display" className="text-xs font-mono text-emerald-400">X: 0 Y: 0</span>
           </div>
           
           <div className="glass-panel px-4 py-2 flex items-center gap-2 pointer-events-auto">

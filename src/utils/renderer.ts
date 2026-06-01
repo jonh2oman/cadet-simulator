@@ -393,7 +393,8 @@ export const drawShip = (
   navLightsOn: boolean,
   whiteLightsOn: boolean,
   bowThruster: number,
-  sternThruster: number
+  sternThruster: number,
+  rudder?: number
 ) => {
   const isZodiac = shipClass === 'zodiac';
   const isMilitary = shipClass === 'corvette' || shipClass === 'frigate';
@@ -403,41 +404,388 @@ export const drawShip = (
   ctx.rotate(state.heading);
 
   if (isZodiac) {
-    // Inflatable tubes
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 1.5;
-    ctx.fillStyle = '#ef4444'; // Red tubes
+    // --- 1. Draw Pontoons (Inflatable Tubes) ---
+    // Apply horizontal linear gradients to simulate a rounded 3D cylindrical surface.
+    // Front 65% of the tubes are matte black, transitioning to grey for the rear 35%.
+
+    // Left Tube Gradients (width is x from -12.5 to -6.5)
+    const leftTubeGrad = ctx.createLinearGradient(-12.5, 0, -6.5, 0);
+    leftTubeGrad.addColorStop(0, '#0f172a');   // outer shadow
+    leftTubeGrad.addColorStop(0.35, '#334155'); // top highlight
+    leftTubeGrad.addColorStop(0.7, '#1e293b');  // inner body
+    leftTubeGrad.addColorStop(1, '#0f172a');    // inner shadow
+    
+    const leftTubeGreyGrad = ctx.createLinearGradient(-12.5, 0, -6.5, 0);
+    leftTubeGreyGrad.addColorStop(0, '#334155');   // outer shadow
+    leftTubeGreyGrad.addColorStop(0.35, '#cbd5e1'); // top highlight
+    leftTubeGreyGrad.addColorStop(0.7, '#94a3b8');  // inner body
+    leftTubeGreyGrad.addColorStop(1, '#475569');    // inner shadow
+
+    // Right Tube Gradients (width is x from 6.5 to 12.5)
+    const rightTubeGrad = ctx.createLinearGradient(6.5, 0, 12.5, 0);
+    rightTubeGrad.addColorStop(0, '#0f172a');    // inner shadow
+    rightTubeGrad.addColorStop(0.3, '#1e293b');  // inner body
+    rightTubeGrad.addColorStop(0.65, '#334155'); // top highlight
+    rightTubeGrad.addColorStop(1, '#0f172a');    // outer shadow
+    
+    const rightTubeGreyGrad = ctx.createLinearGradient(6.5, 0, 12.5, 0);
+    rightTubeGreyGrad.addColorStop(0, '#475569');    // inner shadow
+    rightTubeGreyGrad.addColorStop(0.3, '#94a3b8');  // inner body
+    rightTubeGreyGrad.addColorStop(0.65, '#cbd5e1'); // top highlight
+    rightTubeGreyGrad.addColorStop(1, '#334155');    // outer shadow
+
+    // Draw Left Front Tube (Black, curves inward from y = -10 to -22)
+    ctx.fillStyle = leftTubeGrad;
+    ctx.beginPath();
+    ctx.moveTo(-12.5, 6);
+    ctx.lineTo(-12.5, -10);
+    ctx.bezierCurveTo(-12.5, -17, -7, -21, 0, -22);
+    ctx.lineTo(0, -16.5);
+    ctx.bezierCurveTo(-4.2, -15.5, -6.5, -12.5, -6.5, -10);
+    ctx.lineTo(-6.5, 6);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw Right Front Tube (Black, curves inward from y = -10 to -22)
+    ctx.fillStyle = rightTubeGrad;
+    ctx.beginPath();
+    ctx.moveTo(12.5, 6);
+    ctx.lineTo(12.5, -10);
+    ctx.bezierCurveTo(12.5, -17, 7, -21, 0, -22);
+    ctx.lineTo(0, -16.5);
+    ctx.bezierCurveTo(4.2, -15.5, 6.5, -12.5, 6.5, -10);
+    ctx.lineTo(6.5, 6);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw Left Rear Tube (Grey straight section, y = 6 to 22)
+    ctx.fillStyle = leftTubeGreyGrad;
+    ctx.beginPath();
+    ctx.moveTo(-12.5, 6);
+    ctx.lineTo(-12.5, 22);
+    ctx.lineTo(-6.5, 22);
+    ctx.lineTo(-6.5, 6);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw Right Rear Tube (Grey straight section, y = 6 to 22)
+    ctx.fillStyle = rightTubeGreyGrad;
+    ctx.beginPath();
+    ctx.moveTo(12.5, 6);
+    ctx.lineTo(12.5, 22);
+    ctx.lineTo(6.5, 22);
+    ctx.lineTo(6.5, 6);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw Left Conical End (y = 22 to 28)
+    const leftConeGrad = ctx.createLinearGradient(-12.5, 0, -6.5, 0);
+    leftConeGrad.addColorStop(0, '#1e293b');
+    leftConeGrad.addColorStop(0.35, '#64748b');
+    leftConeGrad.addColorStop(1, '#0f172a');
+    ctx.fillStyle = leftConeGrad;
+    ctx.beginPath();
+    ctx.moveTo(-12.5, 22);
+    ctx.bezierCurveTo(-12.5, 26, -11, 28, -9.5, 28);
+    ctx.bezierCurveTo(-8, 28, -6.5, 26, -6.5, 22);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw Right Conical End (y = 22 to 28)
+    const rightConeGrad = ctx.createLinearGradient(6.5, 0, 12.5, 0);
+    rightConeGrad.addColorStop(0, '#0f172a');
+    rightConeGrad.addColorStop(0.65, '#64748b');
+    rightConeGrad.addColorStop(1, '#1e293b');
+    ctx.fillStyle = rightConeGrad;
+    ctx.beginPath();
+    ctx.moveTo(6.5, 22);
+    ctx.bezierCurveTo(6.5, 26, 8, 28, 9.5, 28);
+    ctx.bezierCurveTo(11, 28, 12.5, 26, 12.5, 22);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw pointed black rubber caps on cones
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.moveTo(-11.5, 26);
+    ctx.bezierCurveTo(-11.5, 27.5, -10.5, 28, -9.5, 28);
+    ctx.bezierCurveTo(-8.5, 28, -7.5, 27.5, -7.5, 26);
+    ctx.closePath();
+    ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(-8, -12, 5, Math.PI, Math.PI * 1.5);
-    ctx.lineTo(8, -17);
-    ctx.arc(8, -12, 5, Math.PI * 1.5, 0);
-    ctx.lineTo(13, 20);
-    ctx.arc(8, 20, 5, 0, Math.PI * 0.5);
-    ctx.lineTo(-8, 25);
-    ctx.arc(-8, 20, 5, Math.PI * 0.5, Math.PI);
+    ctx.moveTo(7.5, 26);
+    ctx.bezierCurveTo(7.5, 27.5, 8.5, 28, 9.5, 28);
+    ctx.bezierCurveTo(10.5, 28, 11.5, 27.5, 11.5, 26);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw Matte Black Bow Cap
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.moveTo(-4, -18);
+    ctx.bezierCurveTo(-3, -21.2, 3, -21.2, 4, -18);
+    ctx.bezierCurveTo(2, -22, -2, -22, -4, -18);
+    ctx.closePath();
+    ctx.fill();
+
+    // ZODIAC branding text on grey sides
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.font = '900 2.2px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    ctx.save();
+    ctx.translate(-11.0, 14);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('ZODIAC', 0, 0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(11.0, 14);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillText('ZODIAC', 0, 0);
+    ctx.restore();
+
+    // Anti-slip patches on black pontoon sections
+    ctx.fillStyle = '#2d3748';
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 0.4;
+    const drawPatch = (x: number, y: number, w: number, h: number) => {
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeRect(x, y, w, h);
+    };
+    drawPatch(-12.1, -7, 1.8, 3.5);
+    drawPatch(-12.3, -1, 1.8, 3.5);
+    drawPatch(-12.3, 5, 1.8, 3.5);
+    drawPatch(10.3, -7, 1.8, 3.5);
+    drawPatch(10.5, -1, 1.8, 3.5);
+    drawPatch(10.5, 5, 1.8, 3.5);
+
+    // Red Safety Lifeline Ropes & D-rings
+    ctx.strokeStyle = '#ef4444'; // Vibrant red
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(-10.2, 13);
+    ctx.lineTo(-10.2, -8);
+    ctx.quadraticCurveTo(-9.5, -13, -4, -17);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(10.2, 13);
+    ctx.lineTo(10.2, -8);
+    ctx.quadraticCurveTo(9.5, -13, 4, -17);
+    ctx.stroke();
+
+    ctx.fillStyle = '#cbd5e1';
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 0.3;
+    const drawDRing = (x: number, y: number) => {
+      ctx.beginPath();
+      ctx.arc(x, y, 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    };
+    const ringYs = [-8, -1, 6, 13];
+    ringYs.forEach(y => {
+      drawDRing(-10.2, y);
+      drawDRing(10.2, y);
+    });
+    drawDRing(-4, -17);
+    drawDRing(4, -17);
+
+    // --- 2. Draw Deck Floor ---
+    ctx.fillStyle = '#334155'; // Dark slate deck floor
+    ctx.beginPath();
+    ctx.moveTo(-6.5, -10);
+    ctx.bezierCurveTo(-6.5, -12.5, -4, -15.5, 0, -16.5);
+    ctx.bezierCurveTo(4, -15.5, 6.5, -12.5, 6.5, -10);
+    ctx.lineTo(6.5, 22);
+    ctx.lineTo(-6.5, 22);
+    ctx.closePath();
+    ctx.fill();
+
+    // Floor parallel drain grooves/non-slip pattern
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 0.5;
+    for (let lx = -4.5; lx <= 4.5; lx += 1.5) {
+      ctx.beginPath();
+      ctx.moveTo(lx, -8);
+      ctx.lineTo(lx, 20);
+      ctx.stroke();
+    }
+
+    // --- 3. Draw Bow Platform & Cleat ---
+    ctx.fillStyle = '#475569';
+    ctx.beginPath();
+    ctx.moveTo(-6.5, -10);
+    ctx.bezierCurveTo(-6.5, -12.5, -4, -15.5, 0, -16.5);
+    ctx.bezierCurveTo(4, -15.5, 6.5, -12.5, 6.5, -10);
+    ctx.lineTo(4.5, -8);
+    ctx.lineTo(-4.5, -8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    
+    // Bow platform hatch lid
+    ctx.fillStyle = '#2d3748';
+    ctx.beginPath();
+    ctx.moveTo(-2.5, -11.5);
+    ctx.bezierCurveTo(-2.5, -13.5, 2.5, -13.5, 2.5, -11.5);
+    ctx.lineTo(1.8, -9.5);
+    ctx.lineTo(-1.8, -9.5);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#cbd5e1'; // Grey deck floor
+    // Black bow roller cleat assembly at bow nose tip
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(-1.5, -20.5, 3, 4);
+    ctx.strokeStyle = '#0f172a';
+    ctx.strokeRect(-1.5, -20.5, 3, 4);
+    // Silver cleat pin
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(-2, -19.5, 4, 1.2);
+
+    // --- 4. Draw Transom Board ---
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(-6.5, 22, 13, 2.5);
+    ctx.strokeRect(-6.5, 22, 13, 2.5);
+
+    // --- 5. Console in the Middle ---
+    // Console Main Body
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(-3.5, -3, 7, 6);
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 0.6;
+    ctx.strokeRect(-3.5, -3, 7, 6);
+
+    // Front console cushion seat
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(-2.5, -5.5, 5, 2.5);
+    ctx.strokeStyle = '#475569';
+    ctx.strokeRect(-2.5, -5.5, 5, 2.5);
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillRect(-2.2, -5.2, 4.4, 1.9);
+
+    // Left Console Side Step Seat
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(-6.0, -1, 2.5, 4);
+    ctx.strokeRect(-6.0, -1, 2.5, 4);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(-5.7, -0.7, 1.9, 3.4);
+
+    // Console Instrument Panel Cover
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(-3.5, 0, 7, 3);
+    
+    // Windshield (faint translucent sky-blue arc)
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
     ctx.beginPath();
-    ctx.moveTo(-5, -12);
-    ctx.lineTo(5, -12);
-    ctx.lineTo(8, 20);
-    ctx.lineTo(-8, 20);
+    ctx.moveTo(-3, 0);
+    ctx.bezierCurveTo(-2, -2.2, 2, -2.2, 3, 0);
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = '#64748b'; // Aft transom board
-    ctx.fillRect(-8, 20, 16, 3);
+    // Windshield black grab rail frame
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(-3.5, 2.2);
+    ctx.lineTo(-3.5, -1.2);
+    ctx.quadraticCurveTo(-2, -3.2, 0, -3.2);
+    ctx.quadraticCurveTo(2, -3.2, 3.5, -1.2);
+    ctx.lineTo(3.5, 2.2);
+    ctx.stroke();
 
-    // Blower console
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillRect(-3, 0, 6, 6);
-    // Outboard motor
+    // Black steering wheel
+    ctx.save();
+    ctx.translate(1.5, 1.5);
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.arc(0, 0, 1.6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-1.6, 0); ctx.lineTo(1.6, 0);
+    ctx.moveTo(0, -1.6); ctx.lineTo(0, 1.6);
+    ctx.stroke();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.beginPath(); ctx.arc(0, 0, 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // Cup Holders
     ctx.fillStyle = '#0f172a';
-    ctx.fillRect(-2, 20, 4, 4);
+    ctx.beginPath(); ctx.arc(-1.8, 1.8, 0.8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-0.6, 1.8, 0.8, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 0.4;
+    ctx.beginPath(); ctx.arc(-1.8, 1.8, 0.8, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(-0.6, 1.8, 0.8, 0, Math.PI * 2); ctx.stroke();
+
+    // --- 6. Driver Bench Seat ---
+    // Seat Base
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(-5.5, 8, 11, 4.5);
+    ctx.strokeStyle = '#1e293b';
+    ctx.strokeRect(-5.5, 8, 11, 4.5);
+    
+    // Bench Cushion cushions
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(-5.0, 8.4, 4.6, 3.7);
+    ctx.fillRect(0.4, 8.4, 4.6, 3.7);
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 0.4;
+    ctx.strokeRect(-5.0, 8.4, 4.6, 3.7);
+    ctx.strokeRect(0.4, 8.4, 4.6, 3.7);
+
+    // Bench backrest frame
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(-5.5, 12.5, 11, 1.2);
+    ctx.strokeRect(-5.5, 12.5, 11, 1.2);
+
+    // --- 7. Sleek Black Outboard Motor (Steers dynamically by rudder) ---
+    ctx.save();
+    ctx.translate(0, 23.5);
+    
+    // Invert rudder steering rotation since nozzle points opposite to turn direction
+    const rudderAngle = (rudder || 0) * (Math.PI / 180);
+    ctx.rotate(-rudderAngle);
+
+    // Bracket
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(-1.5, -1, 3, 2);
+
+    // Cowling (Engine shape)
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.moveTo(-2.5, 0.5);
+    ctx.bezierCurveTo(-3.2, 0.5, -3.2, 7.5, 0, 8.0);
+    ctx.bezierCurveTo(3.2, 7.5, 3.2, 0.5, 2.5, 0.5);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+
+    // Glossy highlight reflection
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(1.8, 1.5);
+    ctx.bezierCurveTo(2.2, 3.5, 2.2, 5.5, 0.6, 7.0);
+    ctx.stroke();
+
+    // Red trim stripe
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 0.4;
+    ctx.beginPath();
+    ctx.moveTo(-2.0, 5.5);
+    ctx.quadraticCurveTo(0, 6.0, 2.0, 5.5);
+    ctx.stroke();
+
+    ctx.restore();
 
   } else if (isMilitary) {
     const lengthMultiplier = shipClass === 'frigate' ? 2.0 : 1.5;
