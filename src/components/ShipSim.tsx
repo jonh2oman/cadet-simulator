@@ -248,24 +248,7 @@ export default function ShipSim() {
     }
   };
 
-  // Check segment intersection
-  const checkIntersection = (
-    p0_x: number, p0_y: number, p1_x: number, p1_y: number,
-    p2_x: number, p2_y: number, p3_x: number, p3_y: number
-  ) => {
-    const s1_x = p1_x - p0_x;
-    const s1_y = p1_y - p0_y;
-    const s2_x = p3_x - p2_x;
-    const s2_y = p3_y - p2_y;
 
-    const s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / (-s2_x * s1_y + s1_x * s2_y);
-    const t = (s2_x * (p0_y - p2_y) - s2_y * (p0_x - p2_x)) / (-s2_x * s1_y + s1_x * s2_y);
-
-    if (s >= 0 && s <= 1 && t >= 0 && t <= 1) {
-      return true;
-    }
-    return false;
-  };
 
   // Engine & System controls
   const [throttle, setThrottle] = useState(0); // -100 to 100
@@ -286,9 +269,91 @@ export default function ShipSim() {
   const [envExpanded, setEnvExpanded] = useState(true);
   const [damageEnabled, setDamageEnabled] = useState(false);
   const [portMode, setPortMode] = useState<'home'|'random'|'pasadena'>('home');
-  const [, setIslands] = useState<Array<{points: number[][]}>>([]);
+  const [islands, setIslands] = useState<Array<{points: number[][]}>>([]);
   const islandsRef = useRef<Array<{points: number[][]}>>([]);
   const [shipDamage, setShipDamage] = useState(0);
+  
+  const physicsWorkerRef = useRef<Worker | null>(null);
+
+  useEffect(() => {
+    // Instantiate background physics Web Worker
+    const worker = new Worker(new URL('../workers/physics.worker.ts', import.meta.url), {
+      type: 'module'
+    });
+    
+    physicsWorkerRef.current = worker;
+    
+    // Initialize worker physics state
+    worker.postMessage({
+      type: 'init',
+      payload: {
+        x: shipState.current.x,
+        y: shipState.current.y,
+        heading: shipState.current.heading,
+        speed: shipState.current.speed,
+        shipClass,
+        portMode,
+        isDocked,
+        snapX: tieUpDataRef.current.snapX,
+        snapY: tieUpDataRef.current.snapY,
+        snapH: tieUpDataRef.current.snapH
+      }
+    });
+
+    // Receive simulated calculations from the worker
+    worker.onmessage = (e) => {
+      const { type, payload } = e.data;
+      if (type === 'physics_update') {
+        shipState.current.x = payload.x;
+        shipState.current.y = payload.y;
+        shipState.current.heading = payload.heading;
+        shipState.current.speed = payload.speed;
+        
+        setCanTieUp(payload.canTieUp);
+        
+        if (payload.collision) {
+          if (controlsRef.current.damageEnabled) {
+            setShipDamage(d => Math.min(100, d + payload.collisionImpact * 15 + 2));
+          }
+          playBeep(120, 0.15); // collision thump
+        }
+        
+        if (payload.crossedGateIndex !== -1) {
+          setActiveCourse(prev => {
+            if (!prev) return null;
+            const updatedGates = [...prev.gates];
+            updatedGates[payload.crossedGateIndex] = {
+              ...updatedGates[payload.crossedGateIndex],
+              passed: true
+            };
+            playBeep(880, 0.25); // checkpoint gate crossed
+            return { ...prev, gates: updatedGates };
+          });
+        }
+        
+        tieUpDataRef.current = {
+          snapX: payload.snapX,
+          snapY: payload.snapY,
+          snapH: payload.snapH
+        };
+      }
+    };
+    
+    return () => {
+      worker.postMessage({ type: 'stop' });
+      worker.terminate();
+    };
+  }, []);
+
+  // Sync islands list to physics worker when map loads
+  useEffect(() => {
+    if (physicsWorkerRef.current) {
+      physicsWorkerRef.current.postMessage({
+        type: 'set_islands',
+        payload: { islands }
+      });
+    }
+  }, [islands]);
   
   useEffect(() => {
     if (portMode === 'pasadena') {
@@ -305,6 +370,12 @@ export default function ShipSim() {
       setSternThruster(0);
       setIsDocked(false);
       tieUpDataRef.current = { snapX: 500, snapY: 120, snapH: 0 };
+      if (physicsWorkerRef.current) {
+        physicsWorkerRef.current.postMessage({
+          type: 'reset_position',
+          payload: { x: 500, y: 120, heading: 0, speed: 0, isDocked: false, snapX: 500, snapY: 120, snapH: 0 }
+        });
+      }
     } else {
       const state = shipState.current;
       state.x = 460;
@@ -318,6 +389,12 @@ export default function ShipSim() {
       setSternThruster(0);
       setIsDocked(false);
       tieUpDataRef.current = { snapX: 460, snapY: 150, snapH: 0 };
+      if (physicsWorkerRef.current) {
+        physicsWorkerRef.current.postMessage({
+          type: 'reset_position',
+          payload: { x: 460, y: 150, heading: 0, speed: 0, isDocked: false, snapX: 460, snapY: 150, snapH: 0 }
+        });
+      }
     }
   }, [portMode]);
 
@@ -325,6 +402,29 @@ export default function ShipSim() {
   const [isDocked, setIsDocked] = useState(false);
   const [canTieUp, setCanTieUp] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+
+  // Monitor activeCourse completion reactively
+  useEffect(() => {
+    const course = activeCourse;
+    if (course && !courseCompleted) {
+      const allPassed = course.gates.every(g => g.passed);
+      if (allPassed) {
+        if (course.berthRequired) {
+          if (isDocked) {
+            setCourseCompleted(true);
+            courseCompletedRef.current = true;
+            playBeep(1000, 0.15);
+            setTimeout(() => playBeep(1300, 0.3), 150);
+          }
+        } else {
+          setCourseCompleted(true);
+          courseCompletedRef.current = true;
+          playBeep(1000, 0.15);
+          setTimeout(() => playBeep(1300, 0.3), 150);
+        }
+      }
+    }
+  }, [activeCourse, isDocked, courseCompleted]);
   const isPausedRef = useRef(false);
   const tieUpDataRef = useRef({ snapX: 460, snapY: 150, snapH: 0 });
   
@@ -366,6 +466,30 @@ export default function ShipSim() {
     };
     heliControlsRef.current.altitude = heliAltitude;
     heliControlsRef.current.speed = heliSpeed;
+
+    if (physicsWorkerRef.current) {
+      physicsWorkerRef.current.postMessage({
+        type: 'update_inputs',
+        payload: {
+          throttle,
+          rudder,
+          bowThruster,
+          sternThruster,
+          windSpeed,
+          windDir,
+          currentSpeed,
+          currentDir,
+          shipClass,
+          portMode,
+          damageEnabled,
+          anchorDropped,
+          isDocked,
+          snapX: tieUpDataRef.current.snapX,
+          snapY: tieUpDataRef.current.snapY,
+          snapH: tieUpDataRef.current.snapH
+        }
+      });
+    }
   }, [throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, anchorDropped, windSpeed, windDir, currentSpeed, currentDir, jettyType, showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode, heliAltitude, heliSpeed, engineSoundOn]);
 
   const getAudioContext = () => {
@@ -1402,7 +1526,30 @@ export default function ShipSim() {
 
       // Update physics
       const state = shipState.current;
-      const { throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, windSpeed, windDir, currentSpeed, currentDir, shipClass, simMode, engineSoundOn } = controlsRef.current;
+      const { throttle, shipClass, simMode, engineSoundOn } = controlsRef.current;
+
+      // Define visual scale parameters for ship size and offsets
+      let visualScale = 1.5625;
+      if (shipClass === 'zodiac') visualScale = 0.78125;
+      else if (shipClass === 'corvette') visualScale = 1.875;
+      else if (shipClass === 'frigate') visualScale = 2.8125;
+
+      const dockWorldX = 500;
+      const dockWorldY = 50;
+
+      let berthZone = { x: -80, y: 20, w: 70, h: 160 };
+      if (controlsRef.current.portMode === 'pasadena') {
+        berthZone = { x: -27, y: 80, w: 54, h: 80 };
+      } else {
+        switch (controlsRef.current.jettyType) {
+          case 'straight': berthZone = { x: -80, y: 20, w: 70, h: 160 }; break;
+          case 'l-shape': berthZone = { x: -80, y: 40, w: 80, h: 140 }; break;
+          case 'u-shape': berthZone = { x: -100, y: 40, w: 100, h: 120 }; break;
+          case 't-shape': berthZone = { x: -150, y: 20, w: 60, h: 160 }; break;
+        }
+      }
+
+      const course = activeCourseRef.current;
       
       // Update engine sound continuously based on actual underway speed
       if (audioCtxRef.current && engineNodeRef.current && engineSoundOn) {
@@ -1503,238 +1650,8 @@ export default function ShipSim() {
         }
       }
       
-      // Class physics modifiers
-      let inertia = 1; // 1 = small, <1 = larger (slower response)
-      let turnInertia = 1;
-      let visualScale = 1.5625; // (scaled up another 25%)
-      let maxSpeedMultiplier = 0.35; // ~35 knots default (Patrol Boat)
-      
-      if (shipClass === 'zodiac') {
-        inertia = 1.8; // Very fast acceleration
-        turnInertia = 2.0; // Very fast turning
-        visualScale = 0.78125; // Small size (scaled up another 25%)
-        maxSpeedMultiplier = 0.40; // ~40 knots
-      } else if (shipClass === 'corvette') {
-        inertia = 0.5;
-        turnInertia = 0.25; // Slower turning response
-        visualScale = 1.875; // (scaled up another 25%)
-        maxSpeedMultiplier = 0.28; // ~28 knots
-      } else if (shipClass === 'frigate') {
-        inertia = 0.25;
-        turnInertia = 0.10; // Realistic slow turn response for a 135m ship
-        visualScale = 2.8125; // (scaled up another 25%)
-        maxSpeedMultiplier = 0.30; // ~30 knots
-      }
-
-      // Acceleration based on throttle (-100 to 100)
-      const targetSpeed = (throttle / 10) * maxSpeedMultiplier; 
-      state.speed += (targetSpeed - state.speed) * dt * 0.5 * inertia;
-
-      // Turning based on rudder (-45 to 45) and speed
-      if (Math.abs(state.speed) > 0.1) {
-        const turnRate = (rudder / 45) * Math.min(Math.abs(state.speed), 5) * 0.2 * turnInertia;
-        state.heading += (state.speed > 0 ? turnRate : -turnRate) * dt;
-      }
-      
-      // Side thrusters for larger ships
-      let lateralDx = 0;
-      let lateralDy = 0;
-      if (shipClass === 'corvette' || shipClass === 'frigate') {
-        const bowT = bowThruster / 100;
-        const sternT = sternThruster / 100;
-        
-        // Thrusters can only operate efficiently at low speeds
-        const thrusterEfficiency = Math.max(0, 1 - Math.abs(state.speed) / 5);
-        
-        const thrusterTurnRate = (bowT - sternT) * 0.06 * turnInertia * thrusterEfficiency;
-        state.heading += thrusterTurnRate * dt;
-        
-        const lateralDrift = (bowT + sternT) * 0.5 * thrusterEfficiency; // 0.5 units of lateral drift max
-        const perpRad = state.heading + Math.PI / 2;
-        lateralDx = Math.sin(perpRad) * lateralDrift;
-        lateralDy = -Math.cos(perpRad) * lateralDrift;
-      }
-
-      if (controlsRef.current.isDocked) {
-        state.speed = 0;
-        state.x = tieUpDataRef.current.snapX;
-        state.y = tieUpDataRef.current.snapY;
-        state.heading = tieUpDataRef.current.snapH;
-      }
-
-      // Calculate environmental drift
-      // Wind: blows FROM windDir. Converting to radians for math. Pushes towards windDir + 180.
-      const windRad = (windDir + 180) * (Math.PI / 180);
-      const windForce = controlsRef.current.anchorDropped ? 0 : (windSpeed / 30) * 3; // Max 3 units of drift
-      const windDx = Math.sin(windRad) * windForce;
-      const windDy = -Math.cos(windRad) * windForce; // -cos because Canvas Y is inverted
-
-      // Current: Set is the direction current flows TOWARDS.
-      const currentRad = currentDir * (Math.PI / 180);
-      const currentForce = controlsRef.current.anchorDropped ? 0 : (currentSpeed / 5) * 4; // Max 4 units of drift
-      const currentDx = Math.sin(currentRad) * currentForce;
-      const currentDy = -Math.cos(currentRad) * currentForce;
-
-      if (controlsRef.current.anchorDropped) {
-        state.speed *= 0.92; // high drag when anchored
-      }
-
-      // Move ship (Engine thrust + Wind drift + Current drift + Lateral thrusters)
-      const newX = state.x + (Math.sin(state.heading) * state.speed * 10 + windDx * 10 + currentDx * 10 + lateralDx * 10) * dt;
-      const newY = state.y - (Math.cos(state.heading) * state.speed * 10 - windDy * 10 - currentDy * 10 - lateralDy * 10) * dt;
-
-      // Collision Detection
-      let collision = false;
-      const shipRadius = 12 * visualScale;
-      
-      // Jetty & Bridge hitboxes
-      let jettyRects: {x:number, y:number, w:number, h:number}[] = [];
-      const dockWorldX = 500;
-      const dockWorldY = 50;
-      let berthZone = { x: -80, y: 20, w: 70, h: 160, snapX: 460, snapY: 150, snapH: 0 }; // default
-      
-      if (controlsRef.current.portMode === 'pasadena') {
-        jettyRects = [
-          { x: -130, y: 45, w: 20, h: 155 }, // Left straight breakwater
-          { x: 110, y: 45, w: 20, h: 155 },  // Right straight breakwater
-          { x: -35, y: 80, w: 8, h: 80 },    // Left floating finger dock
-          { x: 27, y: 80, w: 8, h: 80 }      // Right floating finger dock
-        ];
-        berthZone = { x: -27, y: 80, w: 54, h: 80, snapX: 500, snapY: 120, snapH: 0 };
-      } else {
-        switch (controlsRef.current.jettyType) {
-          case 'straight': 
-            jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: 40, y: 80, w: 210, h: 40 }]; 
-            berthZone = { x: -80, y: 20, w: 70, h: 160, snapX: 460, snapY: 150, snapH: 0 };
-            break;
-          case 'l-shape': 
-            jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: -100, y: 0, w: 100, h: 40 }, { x: 40, y: 80, w: 210, h: 40 }]; 
-            berthZone = { x: -80, y: 40, w: 80, h: 140, snapX: 460, snapY: 150, snapH: 0 };
-            break;
-          case 'u-shape': 
-            jettyRects = [{ x: 0, y: 0, w: 40, h: 200 }, { x: -100, y: 0, w: 100, h: 40 }, { x: -100, y: 160, w: 100, h: 40 }, { x: 40, y: 80, w: 210, h: 40 }]; 
-            berthZone = { x: -100, y: 40, w: 100, h: 120, snapX: 450, snapY: 150, snapH: 0 };
-            break;
-          case 't-shape': 
-            jettyRects = [{ x: -40, y: 80, w: 80, h: 40 }, { x: -80, y: -40, w: 40, h: 280 }, { x: 40, y: 80, w: 210, h: 40 }]; 
-            berthZone = { x: -150, y: 20, w: 60, h: 160, snapX: 390, snapY: 150, snapH: 0 };
-            break;
-        }
-      }
-      
-      for (const rect of jettyRects) {
-        const testX = Math.max(dockWorldX + rect.x, Math.min(newX, dockWorldX + rect.x + rect.w));
-        const testY = Math.max(dockWorldY + rect.y, Math.min(newY, dockWorldY + rect.y + rect.h));
-        const dist = Math.hypot(newX - testX, newY - testY);
-        if (dist <= shipRadius) { collision = true; break; }
-      }
-
-      // Island & Mainland hitboxes
-      if (!collision) {
-        if (controlsRef.current.portMode === 'pasadena') {
-          // Exact diagonal channel boundary collision for Deer Lake (Pasadena map)
-          // NW Shore is at y = -x - 1500
-          const minChannelY = -newX - 1500 + shipRadius;
-          
-          // SE Shore is at y = -x + 2200 with the Pasadena peninsula projection
-          let maxChannelY = -newX + 2200;
-          if (newX >= 600 && newX <= 800) {
-            const ratio = (newX - 600) / 200;
-            maxChannelY = ratio * (-newX + 2200) + (1 - ratio) * 250;
-          } else if (newX >= 400 && newX < 600) {
-            maxChannelY = 250; // flat harbor shore
-          } else if (newX >= 200 && newX < 400) {
-            const ratio = (400 - newX) / 200;
-            maxChannelY = ratio * (-newX + 2200) + (1 - ratio) * 250;
-          }
-          maxChannelY -= shipRadius;
-
-          if (newY <= minChannelY || newY >= maxChannelY) {
-            collision = true;
-          }
-        } else {
-          if (newX > dockWorldX + 250 - shipRadius) {
-            collision = true;
-          } else {
-            for (const island of islandsRef.current) {
-              // Approximate island with bounding box for simplicity
-              let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
-              island.points.forEach(p => {
-                if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0];
-                if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1];
-              });
-              const testX = Math.max(minX, Math.min(newX, maxX));
-              const testY = Math.max(minY, Math.min(newY, maxY));
-              if (Math.hypot(newX - testX, newY - testY) <= shipRadius) { collision = true; break; }
-            }
-          }
-        }
-      }
-
-      // Check Berthing Zone (Only if not docked)
-      if (!controlsRef.current.isDocked) {
-        const inZoneX = state.x >= dockWorldX + berthZone.x && state.x <= dockWorldX + berthZone.x + berthZone.w;
-        const inZoneY = state.y >= dockWorldY + berthZone.y && state.y <= dockWorldY + berthZone.y + berthZone.h;
-        const speedOk = Math.abs(state.speed) < 0.5;
-        const isTieUpAvailable = inZoneX && inZoneY && speedOk;
-        
-        if (isTieUpAvailable) {
-           tieUpDataRef.current = { snapX: berthZone.snapX, snapY: berthZone.snapY, snapH: berthZone.snapH };
-        }
-        
-        // Pass to React State (limit frequency)
-        setCanTieUp(prev => {
-          if (prev !== isTieUpAvailable) return isTieUpAvailable;
-          return prev;
-        });
-      } else {
-        setCanTieUp(false);
-      }
-
-      if (collision) {
-        // Bounce / Stop
-        state.speed = -state.speed * 0.4; // Bounce back
-        if (controlsRef.current.damageEnabled) {
-          setShipDamage(d => Math.min(100, d + Math.abs(state.speed) * 15 + 2));
-        }
-      } else {
-        state.x = newX;
-        state.y = newY;
-      }
-
-      // Track course gate crossing
-      const prevX = prevPosRef.current.x;
-      const prevY = prevPosRef.current.y;
-      prevPosRef.current = { x: state.x, y: state.y };
-
-      const course = activeCourseRef.current;
-      if (course && !courseCompletedRef.current) {
-        const nextGateIndex = course.gates.findIndex(g => !g.passed);
-        if (nextGateIndex !== -1) {
-          const gate = course.gates[nextGateIndex];
-          if (checkIntersection(prevX, prevY, state.x, state.y, gate.x1, gate.y1, gate.x2, gate.y2)) {
-            gate.passed = true;
-            playBeep(880, 0.2);
-            setActiveCourse({ ...course });
-          }
-        } else {
-          // All gates passed, check if berthing is needed
-          if (course.berthRequired) {
-            if (controlsRef.current.isDocked) {
-              setCourseCompleted(true);
-              courseCompletedRef.current = true;
-              playBeep(1000, 0.15);
-              setTimeout(() => playBeep(1300, 0.3), 150);
-            }
-          } else {
-            setCourseCompleted(true);
-            courseCompletedRef.current = true;
-            playBeep(1000, 0.15);
-            setTimeout(() => playBeep(1300, 0.3), 150);
-          }
-        }
-
-        // Track elapsed time
+      // Physics calculations, environmental drift, and collisions are offloaded to the Web Worker background thread.
+      if (activeCourseRef.current && !courseCompletedRef.current) {
         const now = performance.now();
         if (courseStartTimeRef.current !== null) {
           const elapsed = (now - courseStartTimeRef.current) / 1000;
