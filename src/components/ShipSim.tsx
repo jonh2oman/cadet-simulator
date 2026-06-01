@@ -1459,7 +1459,7 @@ export default function ShipSim() {
 
       // Turning based on rudder (-45 to 45) and speed
       if (Math.abs(state.speed) > 0.1) {
-        const turnRate = (rudder / 45) * Math.min(Math.abs(state.speed), 5) * 0.08 * turnInertia;
+        const turnRate = (rudder / 45) * Math.min(Math.abs(state.speed), 5) * 0.2 * turnInertia;
         state.heading += (state.speed > 0 ? turnRate : -turnRate) * dt;
       }
       
