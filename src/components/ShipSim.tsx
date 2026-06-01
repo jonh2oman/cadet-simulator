@@ -698,25 +698,60 @@ export default function ShipSim() {
       ctx.lineWidth = 4;
       
       if (currentStore.portMode === 'pasadena') {
-         // Pasadena Jetty
-         ctx.fillRect(dockWorldX - 10, dockWorldY, 20, 160);
-         ctx.strokeRect(dockWorldX - 10, dockWorldY, 20, 160);
+         ctx.save();
+         ctx.translate(dockWorldX, dockWorldY);
          
-         // Pasadena LZ
+         const drawFloatingDock = (x: number, y: number, w: number, h: number) => {
+           ctx.save();
+           // Draw white floating pontoon base
+           ctx.fillStyle = '#f8fafc'; // white/slate-50
+           ctx.strokeStyle = '#475569';
+           ctx.lineWidth = 1.5;
+           ctx.fillRect(x, y, w, h);
+           ctx.strokeRect(x, y, w, h);
+
+           // Draw wooden walkway insert
+           ctx.fillStyle = '#d97706'; // amber-600 wood tone
+           ctx.fillRect(x + 1.5, y + 2, w - 3, h - 4);
+
+           // Draw gangway connection to shore
+           ctx.fillStyle = '#475569';
+           ctx.fillRect(x + 1, 200, w - 2, -120 + y);
+           ctx.fillStyle = '#94a3b8';
+           ctx.fillRect(x + 2, 200, w - 4, -120 + y);
+           ctx.restore();
+         };
+
+         // Draw Left & Right Breakwaters (straight stone piers)
          ctx.fillStyle = '#334155';
-         ctx.fillRect(dockWorldX + 130, dockWorldY + 80, 40, 40);
-         ctx.strokeRect(dockWorldX + 130, dockWorldY + 80, 40, 40);
+         ctx.strokeStyle = '#1e293b';
+         ctx.lineWidth = 4;
+         ctx.fillRect(-130, 45, 20, 155);
+         ctx.strokeRect(-130, 45, 20, 155);
+         ctx.fillRect(110, 45, 20, 155);
+         ctx.strokeRect(110, 45, 20, 155);
+
+         // Draw floating finger piers
+         drawFloatingDock(-35, 80, 8, 80);
+         drawFloatingDock(27, 80, 8, 80);
+
+         // Pasadena LZ (Helipad)
+         ctx.fillStyle = '#334155';
+         ctx.fillRect(130, 80, 40, 40);
+         ctx.strokeRect(130, 80, 40, 40);
          
          ctx.strokeStyle = '#ef4444';
          ctx.lineWidth = 3;
          ctx.beginPath();
-         ctx.arc(dockWorldX + 150, dockWorldY + 100, 12, 0, Math.PI * 2);
+         ctx.arc(150, 100, 12, 0, Math.PI * 2);
          ctx.stroke();
          ctx.fillStyle = '#ef4444';
          ctx.font = 'bold 12px monospace';
          ctx.textAlign = 'center';
          ctx.textBaseline = 'middle';
-         ctx.fillText('H', dockWorldX + 150, dockWorldY + 100);
+         ctx.fillText('H', 150, 100);
+
+         ctx.restore();
       } else {
          // Deer Lake / home maps breakwater straight jetties
          switch (currentStore.jettyType) {

@@ -711,7 +711,7 @@ export const drawMainland = (
   camY: number
 ) => {
   ctx.save();
-  ctx.translate(width / 2 - camX, height / 2 - camY);
+  ctx.translate(width / 2 - camX + 500, height / 2 - camY + 50);
   
   ctx.beginPath();
   ctx.moveTo(250, -4000);
