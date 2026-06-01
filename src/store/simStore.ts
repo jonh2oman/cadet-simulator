@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { Course } from '../config/constants';
 
 export interface SimState {
   throttle: number;
@@ -20,6 +21,15 @@ export interface SimState {
   simMode: 'ship' | 'heli';
   engineSoundOn: boolean;
   shipDamage: number;
+  showPortBuoy: boolean;
+  showStbdBuoy: boolean;
+  activeCourse: Course | null;
+  courseElapsedTime: number;
+  courseCompleted: boolean;
+  musicPlaying: boolean;
+  heliAltitude: number;
+  heliSpeed: number;
+  missionAccomplished: boolean;
 }
 
 type StateSetter<T> = T | ((prev: T) => T);
@@ -44,6 +54,15 @@ interface SimStore extends SimState {
   setSimMode: (v: StateSetter<'ship' | 'heli'>) => void;
   setEngineSoundOn: (v: StateSetter<boolean>) => void;
   setShipDamage: (v: StateSetter<number>) => void;
+  setShowPortBuoy: (v: StateSetter<boolean>) => void;
+  setShowStbdBuoy: (v: StateSetter<boolean>) => void;
+  setActiveCourse: (v: StateSetter<Course | null>) => void;
+  setCourseElapsedTime: (v: StateSetter<number>) => void;
+  setCourseCompleted: (v: StateSetter<boolean>) => void;
+  setMusicPlaying: (v: StateSetter<boolean>) => void;
+  setHeliAltitude: (v: StateSetter<number>) => void;
+  setHeliSpeed: (v: StateSetter<number>) => void;
+  setMissionAccomplished: (v: StateSetter<boolean>) => void;
   updateState: (payload: Partial<SimState>) => void;
 }
 
@@ -73,7 +92,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     bowThruster: 0,
     sternThruster: 0,
     navLightsOn: true,
-    whiteLightsOn: true,
+    whiteLightsOn: false,
     anchorDropped: false,
     windSpeed: 0,
     windDir: 0,
@@ -87,6 +106,15 @@ export const useSimStore = create<SimStore>((set, get) => {
     simMode: 'ship',
     engineSoundOn: true,
     shipDamage: 0,
+    showPortBuoy: true,
+    showStbdBuoy: true,
+    activeCourse: null,
+    courseElapsedTime: 0,
+    courseCompleted: false,
+    musicPlaying: false,
+    heliAltitude: 0,
+    heliSpeed: 0,
+    missionAccomplished: false,
 
     setThrottle: (val) => {
       const throttle = resolve(val, get().throttle);
@@ -182,6 +210,51 @@ export const useSimStore = create<SimStore>((set, get) => {
       const shipDamage = resolve(val, get().shipDamage);
       set({ shipDamage });
       sync({ shipDamage });
+    },
+    setShowPortBuoy: (val) => {
+      const showPortBuoy = resolve(val, get().showPortBuoy);
+      set({ showPortBuoy });
+      sync({ showPortBuoy });
+    },
+    setShowStbdBuoy: (val) => {
+      const showStbdBuoy = resolve(val, get().showStbdBuoy);
+      set({ showStbdBuoy });
+      sync({ showStbdBuoy });
+    },
+    setActiveCourse: (val) => {
+      const activeCourse = resolve(val, get().activeCourse);
+      set({ activeCourse });
+      sync({ activeCourse });
+    },
+    setCourseElapsedTime: (val) => {
+      const courseElapsedTime = resolve(val, get().courseElapsedTime);
+      set({ courseElapsedTime });
+      sync({ courseElapsedTime });
+    },
+    setCourseCompleted: (val) => {
+      const courseCompleted = resolve(val, get().courseCompleted);
+      set({ courseCompleted });
+      sync({ courseCompleted });
+    },
+    setMusicPlaying: (val) => {
+      const musicPlaying = resolve(val, get().musicPlaying);
+      set({ musicPlaying });
+      sync({ musicPlaying });
+    },
+    setHeliAltitude: (val) => {
+      const heliAltitude = resolve(val, get().heliAltitude);
+      set({ heliAltitude });
+      sync({ heliAltitude });
+    },
+    setHeliSpeed: (val) => {
+      const heliSpeed = resolve(val, get().heliSpeed);
+      set({ heliSpeed });
+      sync({ heliSpeed });
+    },
+    setMissionAccomplished: (val) => {
+      const missionAccomplished = resolve(val, get().missionAccomplished);
+      set({ missionAccomplished });
+      sync({ missionAccomplished });
     },
 
     updateState: (payload) => {

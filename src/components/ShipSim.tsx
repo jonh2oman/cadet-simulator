@@ -1,90 +1,15 @@
 import React, { useRef, useEffect, useState } from 'react';
 import ControlPortal from './ControlPortal';
 import { useSimStore } from '../store/simStore';
-
-const HorizontalThrusterLever = ({ label, value, onChange }: { label: string, value: number, onChange: (val: number) => void }) => {
-  const [isDragging, setIsDragging] = useState(false);
-  const trackRef = useRef<HTMLDivElement>(null);
-
-  const updateFromEvent = (e: React.PointerEvent) => {
-    if (!trackRef.current) return;
-    const rect = trackRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    let pct = x / rect.width; // 0 to 1 (left to right)
-    pct = Math.max(0, Math.min(1, pct));
-    const val = Math.round((pct * 200) - 100);
-    if (Math.abs(val) < 5) onChange(0);
-    else onChange(val);
-  };
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    e.stopPropagation();
-    setIsDragging(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
-    updateFromEvent(e);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    e.stopPropagation();
-    if (isDragging) {
-      updateFromEvent(e);
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    e.stopPropagation();
-    setIsDragging(false);
-    e.currentTarget.releasePointerCapture(e.pointerId);
-  };
-
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="bg-slate-950 border border-slate-700 shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)] rounded p-2 w-32 text-center">
-        <span className="text-[10px] text-slate-500 block mb-1 font-mono tracking-widest">{label}</span>
-        <span className={`text-sm font-mono ${value === 0 ? 'text-slate-500' : 'text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.8)]'}`}>
-          {value > 0 ? `STBD ${value}%` : value < 0 ? `PORT ${Math.abs(value)}%` : '00%'}
-        </span>
-      </div>
-      
-      <div 
-        ref={trackRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onDoubleClick={(e) => { e.stopPropagation(); onChange(0); }}
-        className="lever-container relative h-14 w-40 bg-gradient-to-b from-slate-400 via-slate-100 to-slate-400 rounded-xl shadow-[0_10px_20px_rgba(0,0,0,0.8),inset_0_-5px_10px_rgba(0,0,0,0.5),inset_0_5px_10px_rgba(255,255,255,0.8)] border border-slate-300 flex items-center justify-center cursor-pointer select-none touch-none overflow-hidden"
-      >
-        {/* Inner Slot */}
-        <div className="absolute h-5 w-32 bg-slate-950 rounded-full shadow-[inset_0_5px_15px_rgba(0,0,0,1)] flex flex-col justify-center">
-          <div className="w-full h-0.5 bg-white/10"></div>
-        </div>
-        
-        {/* Scale Markings */}
-        <div className="absolute inset-x-3 top-1 flex justify-between px-1 font-mono text-[9px] font-bold text-slate-800 pointer-events-none">
-          <span>PORT</span><span>0</span><span>STBD</span>
-        </div>
-
-        {/* The Lever Arm and Handle */}
-        <div 
-          className="absolute top-1/2 w-10 h-16 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none z-10"
-          style={{ left: `${50 + (value / 2 * 0.8)}%`, transition: isDragging ? 'none' : 'left 0.1s ease-out' }}
-        >
-          {/* Arm Base / Joint */}
-          <div className="h-8 w-4 bg-gradient-to-r from-slate-500 to-slate-300 rounded-full absolute shadow-[inset_0_2px_2px_rgba(255,255,255,0.5)] z-0"></div>
-          {/* Arm Shaft */}
-          <div className="h-6 w-3 bg-gradient-to-r from-slate-400 via-slate-200 to-slate-400 shadow-[inset_0_0_5px_rgba(0,0,0,0.5)] z-0 absolute"></div>
-          {/* Grip */}
-          <div className="h-16 w-8 bg-gradient-to-r from-slate-800 to-black rounded-lg shadow-[0_10px_15px_rgba(0,0,0,0.8),inset_2px_0_5px_rgba(255,255,255,0.3)] border border-slate-600 z-10 flex flex-col items-center justify-center relative">
-             <div className="absolute top-2 bottom-2 left-1 w-2 bg-gradient-to-r from-white/20 to-transparent rounded-full pointer-events-none"></div>
-             {/* Grip accents */}
-             <div className="h-1.5 w-5 bg-amber-500 rounded-full shadow-[0_0_5px_rgba(245,158,11,0.8),inset_0_1px_3px_rgba(0,0,0,0.8)] opacity-90 my-1"></div>
-             <div className="h-1.5 w-5 bg-amber-500 rounded-full shadow-[0_0_5px_rgba(245,158,11,0.8),inset_0_1px_3px_rgba(0,0,0,0.8)] opacity-90 my-1"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+import { useShipAudio } from '../hooks/useShipAudio';
+import { PREMADE_COURSES, SHIP_SPECS, PASADENA_LABELS } from '../config/constants';
+import type { Course } from '../config/constants';
+import * as renderer from '../utils/renderer';
+import RealismSettings from './RealismSettings';
+import HelmControls from './HelmControls';
+import WelcomeScreen from './WelcomeScreen';
+import MissionAccomplishedModal from './MissionAccomplishedModal';
+import CourseCompletedModal from './CourseCompletedModal';
 
 export default function ShipSim() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -102,116 +27,80 @@ export default function ShipSim() {
   
   const zoomRef = useRef(1);
 
-  const buoys = useRef([
+  const buoys = useRef<Array<{ id: string; type: 'port' | 'starboard'; x: number; y: number }>>([
     { id: '1', type: 'port', x: 200, y: 200 }, // Green
     { id: '2', type: 'starboard', x: 200, y: 0 }, // Red
   ]);
 
-  // Custom Buoy State
   const customBuoysRef = useRef<{ x: number; y: number; color: 'yellow' | 'green' | 'red' }[]>([]);
-  const [customBuoyColor, setCustomBuoyColor] = useState<'yellow' | 'green' | 'red'>('yellow');
 
-  // Pre-made Courses
-  interface CourseGate {
-    x1: number;
-    y1: number;
-    x2: number;
-    y2: number;
-    passed: boolean;
-  }
+  // Simulation settings synced via Zustand
+  const {
+    throttle, setThrottle,
+    rudder, setRudder,
+    bowThruster, setBowThruster,
+    sternThruster, setSternThruster,
+    windSpeed,
+    windDir,
+    currentSpeed,
+    currentDir,
+    jettyType,
+    shipClass, setShipClass,
+    damageEnabled,
+    portMode, setPortMode,
+    setShipDamage,
+    isDocked, setIsDocked,
+    simMode, setSimMode,
+    engineSoundOn,
+    musicPlaying,
+    heliAltitude, setHeliAltitude,
+    heliSpeed, setHeliSpeed,
+    missionAccomplished, setMissionAccomplished,
+    showPortBuoy,
+    showStbdBuoy,
+    activeCourse, setActiveCourse,
+    courseElapsedTime, setCourseElapsedTime,
+    courseCompleted, setCourseCompleted
+  } = useSimStore();
 
-  interface Course {
-    id: string;
-    name: string;
-    description: string;
-    gates: CourseGate[];
-    berthRequired: boolean;
-  }
-
-  const PREMADE_COURSES: Course[] = [
-    {
-      id: 'archipelago_slalom',
-      name: 'Archipelago Slalom',
-      description: 'Depart from the dock, sail around the outer islands through 5 gate checkpoints, and safely return to park in the berth zone.',
-      berthRequired: true,
-      gates: [
-        { x1: 250, y1: -50, x2: 450, y2: -50, passed: false }, // Outward Gate
-        { x1: 50, y1: -360, x2: 250, y2: -360, passed: false }, // North-West Channel
-        { x1: -150, y1: 100, x2: -150, y2: 300, passed: false }, // West Island Pass
-        { x1: 50, y1: 700, x2: 250, y2: 700, passed: false }, // South Return Gate
-        { x1: 350, y1: 320, x2: 500, y2: 320, passed: false } // Final Approach
-      ]
-    },
-    {
-      id: 'precision_entry',
-      name: 'Precision Port Entry',
-      description: 'Depart the dock, complete a slalom through a wide double-island channel, and return to the berth.',
-      berthRequired: true,
-      gates: [
-        { x1: 300, y1: -80, x2: 480, y2: -80, passed: false }, // Harbor Exit
-        { x1: 50, y1: 150, x2: 250, y2: 150, passed: false }, // Mid-Channel Slalom
-        { x1: 350, y1: 350, x2: 520, y2: 350, passed: false } // Final Alignment
-      ]
-    }
-  ];
-
-  const [activeCourse, setActiveCourse] = useState<Course | null>(null);
-  const activeCourseRef = useRef<Course | null>(null);
+  const [islands, setIslands] = useState<Array<{points: number[][]}>>([]);
+  const islandsRef = useRef<Array<{points: number[][]}>>([]);
+  
+  const physicsWorkerRef = useRef<Worker | null>(null);
+  const tieUpDataRef = useRef({ snapX: 460, snapY: 150, snapH: 0 });
   const courseStartTimeRef = useRef<number | null>(null);
-  const [courseElapsedTime, setCourseElapsedTime] = useState<number>(0);
-  const [courseCompleted, setCourseCompleted] = useState<boolean>(false);
-  const courseCompletedRef = useRef<boolean>(false);
   const prevPosRef = useRef({ x: 460, y: 150 });
+  
   const [isControlsPoppedOut, setIsControlsPoppedOut] = useState<boolean>(false);
   const [isSettingsPoppedOut, setIsSettingsPoppedOut] = useState<boolean>(false);
-  const [musicPlaying, setMusicPlaying] = useState<boolean>(false);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const engineNodeRef = useRef<{
-    oscillators: OscillatorNode[];
-    turboOsc?: OscillatorNode;
-    turbineOsc?: OscillatorNode;
-    lfo?: OscillatorNode;
-    filter?: BiquadFilterNode;
-    rumbleGain?: GainNode;
-    modulatorGain?: GainNode;
-    bubblingModGain?: GainNode;
-    noiseSource?: AudioBufferSourceNode;
-    noiseFilter?: BiquadFilterNode;
-    noiseGain?: GainNode;
-    washSource?: AudioBufferSourceNode;
-    washFilter?: BiquadFilterNode;
-    washGain?: GainNode;
-    gainNode: GainNode;
-    compressor?: DynamicsCompressorNode;
-  } | null>(null);
-  const hornNodeRef = useRef<{ oscillators: OscillatorNode[], gainNode: GainNode } | null>(null);
-  const musicTimeoutsRef = useRef<number[]>([]);
+  const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = useRef(false);
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [canTieUp, setCanTieUp] = useState(false);
 
-  const playBeep = (freq = 800, duration = 0.15) => {
-    try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      
-      oscillator.frequency.value = freq;
-      oscillator.type = 'sine';
-      
-      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-      
-      oscillator.start();
-      oscillator.stop(audioCtx.currentTime + duration);
-    } catch (e) {
-      console.error('Audio error', e);
-    }
-  };
+  // Heli physics states
+  const heliState = useRef({
+    x: 0, y: 0, altitude: 0, heading: 0, speed: 0,
+    pitch: 0, roll: 0, yawRate: 0 
+  });
+
+
+  const particlesRef = useRef<{x: number, y: number, life: number, type?: 'wake' | 'smoke', vx?: number, vy?: number}[]>([]);
+
+  // Setup sound synthesizer effects
+  const { playBeep, startHorn, stopHorn } = useShipAudio({
+    simMode,
+    shipClass,
+    throttle,
+    engineSoundOn,
+    heliSpeed,
+    heliAltitude,
+    musicPlaying
+  });
 
   const startCourse = (course: Course | null) => {
     const state = shipState.current;
-    const isPasadena = controlsRef.current.portMode === 'pasadena';
+    const isPasadena = useSimStore.getState().portMode === 'pasadena';
     const startX = isPasadena ? 500 : 460;
     const startY = isPasadena ? 120 : 150;
     state.x = startX;
@@ -232,924 +121,18 @@ export default function ShipSim() {
         gates: course.gates.map(g => ({ ...g, passed: false }))
       };
       setActiveCourse(clonedCourse);
-      activeCourseRef.current = clonedCourse;
-      const now = performance.now();
-      courseStartTimeRef.current = now;
+      courseStartTimeRef.current = performance.now();
       setCourseElapsedTime(0);
       setCourseCompleted(false);
-      courseCompletedRef.current = false;
       playBeep(600, 0.3);
     } else {
       setActiveCourse(null);
-      activeCourseRef.current = null;
       courseStartTimeRef.current = null;
       setCourseCompleted(false);
-      courseCompletedRef.current = false;
     }
   };
 
-
-
-  // Engine, System, and Realism controls synced via Zustand cross-window store
-  const {
-    throttle, setThrottle,
-    rudder, setRudder,
-    bowThruster, setBowThruster,
-    sternThruster, setSternThruster,
-    navLightsOn, setNavLightsOn,
-    whiteLightsOn, setWhiteLightsOn,
-    anchorDropped, setAnchorDropped,
-    windSpeed, setWindSpeed,
-    windDir, setWindDir,
-    currentSpeed, setCurrentSpeed,
-    currentDir, setCurrentDir,
-    jettyType, setJettyType,
-    shipClass, setShipClass,
-    damageEnabled, setDamageEnabled,
-    portMode, setPortMode,
-    shipDamage, setShipDamage,
-    isDocked, setIsDocked,
-    simMode, setSimMode,
-    engineSoundOn, setEngineSoundOn
-  } = useSimStore();
-
-  const [islands, setIslands] = useState<Array<{points: number[][]}>>([]);
-  const [envExpanded, setEnvExpanded] = useState(true);
-  const islandsRef = useRef<Array<{points: number[][]}>>([]);
-  
-  const physicsWorkerRef = useRef<Worker | null>(null);
-
-  useEffect(() => {
-    // Instantiate background physics Web Worker
-    const worker = new Worker(new URL('../workers/physics.worker.ts', import.meta.url), {
-      type: 'module'
-    });
-    
-    physicsWorkerRef.current = worker;
-    
-    // Initialize worker physics state
-    worker.postMessage({
-      type: 'init',
-      payload: {
-        x: shipState.current.x,
-        y: shipState.current.y,
-        heading: shipState.current.heading,
-        speed: shipState.current.speed,
-        shipClass,
-        portMode,
-        isDocked,
-        snapX: tieUpDataRef.current.snapX,
-        snapY: tieUpDataRef.current.snapY,
-        snapH: tieUpDataRef.current.snapH
-      }
-    });
-
-    // Receive simulated calculations from the worker
-    worker.onmessage = (e) => {
-      const { type, payload } = e.data;
-      if (type === 'physics_update') {
-        shipState.current.x = payload.x;
-        shipState.current.y = payload.y;
-        shipState.current.heading = payload.heading;
-        shipState.current.speed = payload.speed;
-        
-        setCanTieUp(payload.canTieUp);
-        
-        if (payload.collision) {
-          if (controlsRef.current.damageEnabled) {
-            setShipDamage(d => Math.min(100, d + payload.collisionImpact * 15 + 2));
-          }
-          playBeep(120, 0.15); // collision thump
-        }
-        
-        if (payload.crossedGateIndex !== -1) {
-          setActiveCourse(prev => {
-            if (!prev) return null;
-            const updatedGates = [...prev.gates];
-            updatedGates[payload.crossedGateIndex] = {
-              ...updatedGates[payload.crossedGateIndex],
-              passed: true
-            };
-            playBeep(880, 0.25); // checkpoint gate crossed
-            return { ...prev, gates: updatedGates };
-          });
-        }
-        
-        tieUpDataRef.current = {
-          snapX: payload.snapX,
-          snapY: payload.snapY,
-          snapH: payload.snapH
-        };
-      }
-    };
-    
-    return () => {
-      worker.postMessage({ type: 'stop' });
-      worker.terminate();
-    };
-  }, []);
-
-  // Sync islands list to physics worker when map loads
-  useEffect(() => {
-    if (physicsWorkerRef.current) {
-      physicsWorkerRef.current.postMessage({
-        type: 'set_islands',
-        payload: { islands }
-      });
-    }
-  }, [islands]);
-  
-  useEffect(() => {
-    if (portMode === 'pasadena') {
-      setShipClass('zodiac');
-      const state = shipState.current;
-      state.x = 500;
-      state.y = 120;
-      state.heading = 0;
-      state.speed = 0;
-      prevPosRef.current = { x: 500, y: 120 };
-      setThrottle(0);
-      setRudder(0);
-      setBowThruster(0);
-      setSternThruster(0);
-      setIsDocked(false);
-      tieUpDataRef.current = { snapX: 500, snapY: 120, snapH: 0 };
-      if (physicsWorkerRef.current) {
-        physicsWorkerRef.current.postMessage({
-          type: 'reset_position',
-          payload: { x: 500, y: 120, heading: 0, speed: 0, isDocked: false, snapX: 500, snapY: 120, snapH: 0 }
-        });
-      }
-    } else {
-      const state = shipState.current;
-      state.x = 460;
-      state.y = 150;
-      state.heading = 0;
-      state.speed = 0;
-      prevPosRef.current = { x: 460, y: 150 };
-      setThrottle(0);
-      setRudder(0);
-      setBowThruster(0);
-      setSternThruster(0);
-      setIsDocked(false);
-      tieUpDataRef.current = { snapX: 460, snapY: 150, snapH: 0 };
-      if (physicsWorkerRef.current) {
-        physicsWorkerRef.current.postMessage({
-          type: 'reset_position',
-          payload: { x: 460, y: 150, heading: 0, speed: 0, isDocked: false, snapX: 460, snapY: 150, snapH: 0 }
-        });
-      }
-    }
-  }, [portMode]);
-
-  const [showWelcome, setShowWelcome] = useState(true);
-  const [canTieUp, setCanTieUp] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-
-  // Monitor activeCourse completion reactively
-  useEffect(() => {
-    const course = activeCourse;
-    if (course && !courseCompleted) {
-      const allPassed = course.gates.every(g => g.passed);
-      if (allPassed) {
-        if (course.berthRequired) {
-          if (isDocked) {
-            setCourseCompleted(true);
-            courseCompletedRef.current = true;
-            playBeep(1000, 0.15);
-            setTimeout(() => playBeep(1300, 0.3), 150);
-          }
-        } else {
-          setCourseCompleted(true);
-          courseCompletedRef.current = true;
-          playBeep(1000, 0.15);
-          setTimeout(() => playBeep(1300, 0.3), 150);
-        }
-      }
-    }
-  }, [activeCourse, isDocked, courseCompleted]);
-  const isPausedRef = useRef(false);
-  const tieUpDataRef = useRef({ snapX: 460, snapY: 150, snapH: 0 });
-  
-  // Helicopter Sidequest States (Simplified for Sea Cadets)
-  const [heliAltitude, setHeliAltitude] = useState(0); // 0 to 100 feet
-  const [heliSpeed, setHeliSpeed] = useState(0); // -10 to 30 knots
-  const [missionAccomplished, setMissionAccomplished] = useState(false);
-
-  // Buoy controls
-  const [showPortBuoy, setShowPortBuoy] = useState(true);
-  const [showStbdBuoy, setShowStbdBuoy] = useState(true);
-
-  const controlsRef = useRef({
-    throttle: 0, rudder: 0, bowThruster: 0, sternThruster: 0,
-    navLightsOn: true, whiteLightsOn: false, anchorDropped: false,
-    windSpeed: 0, windDir: 0, currentSpeed: 0, currentDir: 90, jettyType: 'straight',
-    showPortBuoy: true, showStbdBuoy: true, shipClass: 'patrol', damageEnabled: false, portMode: 'home',
-    isDocked: false, simMode: 'ship', engineSoundOn: true
-  });
-  
-  // Heli Physics State
-  const heliState = useRef({
-    x: 0, y: 0, altitude: 0, heading: 0, speed: 0,
-    pitch: 0, roll: 0, yawRate: 0 
-  });
-
-  const heliControlsRef = useRef({
-    altitude: 0, speed: 0, cyclicX: 0, cyclicY: 0
-  });
-
-  const particlesRef = useRef<{x: number, y: number, life: number, type?: 'wake' | 'smoke', vx?: number, vy?: number}[]>([]);
-
-  useEffect(() => {
-    controlsRef.current = {
-      throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, anchorDropped,
-      windSpeed, windDir, currentSpeed, currentDir, jettyType,
-      showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode, engineSoundOn
-    };
-    heliControlsRef.current.altitude = heliAltitude;
-    heliControlsRef.current.speed = heliSpeed;
-
-    if (physicsWorkerRef.current) {
-      physicsWorkerRef.current.postMessage({
-        type: 'update_inputs',
-        payload: {
-          throttle,
-          rudder,
-          bowThruster,
-          sternThruster,
-          windSpeed,
-          windDir,
-          currentSpeed,
-          currentDir,
-          shipClass,
-          portMode,
-          damageEnabled,
-          anchorDropped,
-          isDocked,
-          snapX: tieUpDataRef.current.snapX,
-          snapY: tieUpDataRef.current.snapY,
-          snapH: tieUpDataRef.current.snapH
-        }
-      });
-    }
-  }, [throttle, rudder, bowThruster, sternThruster, navLightsOn, whiteLightsOn, anchorDropped, windSpeed, windDir, currentSpeed, currentDir, jettyType, showPortBuoy, showStbdBuoy, shipClass, damageEnabled, portMode, isDocked, simMode, heliAltitude, heliSpeed, engineSoundOn]);
-
-  const getAudioContext = () => {
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-    if (audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume();
-    }
-    return audioCtxRef.current;
-  };
-
-  const createNoiseBuffer = (ctx: AudioContext) => {
-    const bufferSize = ctx.sampleRate * 2; // 2 seconds of noise
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-    return buffer;
-  };
-
-  const updateEngineSound = () => {
-    if (!engineSoundOn) {
-      stopEngineSound();
-      return;
-    }
-    try {
-      const ctx = getAudioContext();
-      
-      // We will route all sounds to a main compressor to prevent clipping/cracking
-      let compressor = (engineNodeRef.current as any)?.compressor;
-      if (!compressor) {
-        compressor = ctx.createDynamicsCompressor();
-        compressor.threshold.setValueAtTime(-14, ctx.currentTime);
-        compressor.knee.setValueAtTime(30, ctx.currentTime);
-        compressor.ratio.setValueAtTime(4, ctx.currentTime);
-        compressor.attack.setValueAtTime(0.01, ctx.currentTime);
-        compressor.release.setValueAtTime(0.15, ctx.currentTime);
-        compressor.connect(ctx.destination);
-      }
-
-      if (simMode === 'heli') {
-        if (!engineNodeRef.current || (engineNodeRef.current as any).type !== 'heli') {
-          stopEngineSound();
-          const osc1 = ctx.createOscillator(); // Main Turbine whine
-          const osc2 = ctx.createOscillator(); // Tail rotor buzz/whine
-          const lfo = ctx.createOscillator(); // Rotor blade slap rate (10-20 Hz)
-          const lfoGain = ctx.createGain();
-          const filter = ctx.createBiquadFilter();
-          
-          const noiseSource = ctx.createBufferSource(); // Turbulent wind noise
-          noiseSource.buffer = createNoiseBuffer(ctx);
-          noiseSource.loop = true;
-          const noiseFilter = ctx.createBiquadFilter();
-          const noiseGain = ctx.createGain();
-          
-          const gainNode = ctx.createGain();
-
-          osc1.type = 'sawtooth';
-          osc2.type = 'sawtooth';
-          lfo.type = 'sawtooth'; // Blade slap has a sharp drop
-
-          osc1.connect(filter);
-          filter.type = 'lowpass';
-          filter.frequency.value = 250;
-          filter.connect(gainNode);
-
-          // Tail rotor
-          osc2.connect(gainNode);
-
-          // Blade slap modulation of noise source
-          lfoGain.gain.value = 0.6; // Deep modulation
-          lfo.connect(lfoGain);
-          lfoGain.connect(noiseGain.gain);
-
-          noiseFilter.type = 'bandpass';
-          noiseFilter.frequency.value = 180;
-          noiseFilter.Q.value = 1.5;
-          noiseSource.connect(noiseFilter);
-          noiseFilter.connect(noiseGain);
-          noiseGain.connect(gainNode);
-
-          // Connect LFO to modulate main volume slightly for rotor thump pressure wave
-          const mainLfoGain = ctx.createGain();
-          mainLfoGain.gain.value = 0.45;
-          lfo.connect(mainLfoGain);
-          mainLfoGain.connect(gainNode.gain);
-
-          osc1.start();
-          osc2.start();
-          lfo.start();
-          noiseSource.start();
-
-          // Connect to compressor instead of ctx.destination
-          gainNode.connect(compressor);
-
-          engineNodeRef.current = { 
-            oscillators: [osc1, osc2], 
-            lfo, 
-            filter, 
-            noiseSource, 
-            noiseFilter, 
-            noiseGain, 
-            gainNode,
-            compressor
-          };
-          (engineNodeRef.current as any).type = 'heli';
-        }
-
-        const speedRatio = heliSpeed / 30; // 0 to 1
-        const altRatio = heliAltitude / 100; // 0 to 1
-        const { oscillators, lfo, filter, noiseFilter, noiseGain, gainNode } = engineNodeRef.current;
-
-        // Turbine whine
-        oscillators[0].frequency.setValueAtTime(120 + speedRatio * 90 + altRatio * 50, ctx.currentTime);
-        // Tail rotor
-        oscillators[1].frequency.setValueAtTime(50 + speedRatio * 30, ctx.currentTime);
-        // Rotor blades slap rate (main rotor RPM)
-        if (lfo) {
-          lfo.frequency.setValueAtTime(10 + speedRatio * 8, ctx.currentTime);
-        }
-        if (filter) {
-          filter.frequency.setValueAtTime(250 + speedRatio * 150, ctx.currentTime);
-        }
-        if (noiseFilter) {
-          noiseFilter.frequency.setValueAtTime(180 + speedRatio * 120, ctx.currentTime);
-        }
-        if (noiseGain) {
-          noiseGain.gain.setValueAtTime(0.08 + speedRatio * 0.08, ctx.currentTime);
-        }
-
-        const targetGain = 0.07 + speedRatio * 0.09 + altRatio * 0.04;
-        gainNode.gain.setTargetAtTime(targetGain, ctx.currentTime, 0.1);
-        return;
-      }
-
-      // Ship Engine
-      if (simMode === 'ship') {
-        if (!engineNodeRef.current || (engineNodeRef.current as any).type !== 'ship' || (engineNodeRef.current as any).shipClass !== shipClass) {
-          stopEngineSound();
-
-          const oscs: OscillatorNode[] = [];
-          let turboOsc: OscillatorNode | undefined;
-          let turbineOsc: OscillatorNode | undefined;
-          let lfo: OscillatorNode | undefined;
-          const filter = ctx.createBiquadFilter();
-          const rumbleGain = ctx.createGain(); // holds mixed oscillators scaled down to prevent clipping
-          const modulatorGain = ctx.createGain(); // modulates rumble volume (AM)
-          const gainNode = ctx.createGain(); // final mix channel
-
-          // Noise sources (1: Exhaust bubbling, 2: Propeller wash)
-          const noiseSource = ctx.createBufferSource();
-          noiseSource.buffer = createNoiseBuffer(ctx);
-          noiseSource.loop = true;
-          const noiseFilter = ctx.createBiquadFilter();
-          const noiseGain = ctx.createGain();
-          const bubblingModGain = ctx.createGain(); // modulates exhaust bubble volume (AM)
-
-          const washSource = ctx.createBufferSource();
-          washSource.buffer = createNoiseBuffer(ctx);
-          washSource.loop = true;
-          const washFilter = ctx.createBiquadFilter();
-          const washGain = ctx.createGain();
-
-          // LFO setup for stroke modulation
-          lfo = ctx.createOscillator();
-          lfo.type = 'sawtooth';
-          const lfoGain = ctx.createGain();
-          lfo.connect(lfoGain);
-
-          let turboGain: GainNode | undefined;
-          let turbineGain: GainNode | undefined;
-
-          // Connect LFO modulations safely using AM (amplitude modulation)
-          rumbleGain.connect(modulatorGain);
-          modulatorGain.connect(gainNode);
-          
-          noiseSource.connect(noiseFilter);
-          noiseFilter.connect(noiseGain);
-          noiseGain.connect(bubblingModGain);
-          bubblingModGain.connect(gainNode);
-
-          if (shipClass === 'zodiac') {
-            // Zodiac: buzzy outboard (sawtooth + square)
-            const osc1 = ctx.createOscillator();
-            const osc2 = ctx.createOscillator();
-            osc1.type = 'sawtooth';
-            osc2.type = 'square';
-            
-            osc1.connect(filter);
-            osc2.connect(filter);
-            oscs.push(osc1, osc2);
-
-            filter.type = 'lowpass';
-            filter.frequency.value = 400;
-
-            rumbleGain.gain.value = 0.55; // Up from 0.15 for presence
-            
-            // Connect LFO to modulate rumble gain
-            lfoGain.gain.value = 0.15;
-            modulatorGain.gain.value = 0.85;
-            lfoGain.connect(modulatorGain.gain);
-
-            // Connect LFO to bubblingModGain.gain
-            lfoGain.connect(bubblingModGain.gain);
-            bubblingModGain.gain.value = 0.7;
-
-            // Transom splash noise (quieter base)
-            noiseFilter.type = 'bandpass';
-            noiseFilter.frequency.value = 350;
-            noiseFilter.Q.value = 1.0;
-
-          } else if (shipClass === 'patrol') {
-            // Patrol: Twin diesel + turbo whistle
-            const osc1 = ctx.createOscillator();
-            const osc2 = ctx.createOscillator();
-            const osc3 = ctx.createOscillator();
-            const osc4 = ctx.createOscillator();
-            
-            osc1.type = 'sawtooth';
-            osc2.type = 'sawtooth';
-            osc3.type = 'triangle';
-            osc4.type = 'triangle';
-
-            osc1.connect(filter);
-            osc2.connect(filter);
-            osc3.connect(filter);
-            osc4.connect(filter);
-            oscs.push(osc1, osc2, osc3, osc4);
-
-            filter.type = 'lowpass';
-            filter.frequency.value = 180;
-
-            rumbleGain.gain.value = 0.45; // Up from 0.12
-
-            // LFO connects to modulate engine volume
-            lfoGain.gain.value = 0.2;
-            modulatorGain.gain.value = 0.8;
-            lfoGain.connect(modulatorGain.gain);
-
-            // Turbocharger whine
-            turboOsc = ctx.createOscillator();
-            turboOsc.type = 'sine';
-            turboGain = ctx.createGain();
-            turboGain.gain.value = 0.005; // Audible turbo
-            turboOsc.connect(turboGain);
-            turboGain.connect(gainNode);
-
-            // Exhaust bubbling noise
-            noiseFilter.type = 'bandpass';
-            noiseFilter.frequency.value = 120;
-            noiseFilter.Q.value = 1.2;
-            lfoGain.connect(bubblingModGain.gain);
-            bubblingModGain.gain.value = 0.7;
-
-            // Propeller wash noise
-            washFilter.type = 'bandpass';
-            washFilter.frequency.value = 250;
-            washFilter.Q.value = 0.8;
-            washSource.connect(washFilter);
-            washFilter.connect(washGain);
-            washGain.connect(gainNode);
-
-          } else if (shipClass === 'corvette') {
-            // Corvette: Twin heavy marine diesel + turbo
-            const osc1 = ctx.createOscillator();
-            const osc2 = ctx.createOscillator();
-            const osc3 = ctx.createOscillator();
-            const osc4 = ctx.createOscillator();
-
-            osc1.type = 'sawtooth';
-            osc2.type = 'sawtooth';
-            osc3.type = 'triangle';
-            osc4.type = 'triangle';
-
-            osc1.connect(filter);
-            osc2.connect(filter);
-            osc3.connect(filter);
-            osc4.connect(filter);
-            oscs.push(osc1, osc2, osc3, osc4);
-
-            filter.type = 'lowpass';
-            filter.frequency.value = 120;
-
-            rumbleGain.gain.value = 0.50; // Up from 0.12
-
-            // LFO (very deep modulation)
-            lfoGain.gain.value = 0.25;
-            modulatorGain.gain.value = 0.75;
-            lfoGain.connect(modulatorGain.gain);
-
-            // Turbocharger
-            turboOsc = ctx.createOscillator();
-            turboOsc.type = 'sine';
-            turboGain = ctx.createGain();
-            turboGain.gain.value = 0.003;
-            turboOsc.connect(turboGain);
-            turboGain.connect(gainNode);
-
-            // Deep bubbling exhaust
-            noiseFilter.type = 'bandpass';
-            noiseFilter.frequency.value = 80;
-            noiseFilter.Q.value = 1.5;
-            lfoGain.connect(bubblingModGain.gain);
-            bubblingModGain.gain.value = 0.65;
-
-            // Propeller wash
-            washFilter.type = 'bandpass';
-            washFilter.frequency.value = 180;
-            washFilter.Q.value = 0.6;
-            washSource.connect(washFilter);
-            washFilter.connect(washGain);
-            washGain.connect(gainNode);
-
-          } else {
-            // Frigate: CODAG (Diesel + Turbine)
-            const osc1 = ctx.createOscillator();
-            const osc2 = ctx.createOscillator();
-            const osc3 = ctx.createOscillator();
-
-            osc1.type = 'sawtooth';
-            osc2.type = 'sawtooth';
-            osc3.type = 'triangle';
-
-            osc1.connect(filter);
-            osc2.connect(filter);
-            osc3.connect(filter);
-            oscs.push(osc1, osc2, osc3);
-
-            filter.type = 'lowpass';
-            filter.frequency.value = 110;
-
-            rumbleGain.gain.value = 0.45; // Up from 0.12
-
-            // LFO
-            lfoGain.gain.value = 0.2;
-            modulatorGain.gain.value = 0.8;
-            lfoGain.connect(modulatorGain.gain);
-
-            // Gas Turbine whistle
-            turbineOsc = ctx.createOscillator();
-            turbineOsc.type = 'sine';
-            turbineGain = ctx.createGain();
-            turbineGain.gain.value = 0.002;
-            turbineOsc.connect(turbineGain);
-            turbineGain.connect(gainNode);
-
-            // Exhaust bubbling
-            noiseFilter.type = 'bandpass';
-            noiseFilter.frequency.value = 90;
-            noiseFilter.Q.value = 1.3;
-            lfoGain.connect(bubblingModGain.gain);
-            bubblingModGain.gain.value = 0.7;
-
-            // Massive propeller wash
-            washFilter.type = 'bandpass';
-            washFilter.frequency.value = 150;
-            washFilter.Q.value = 0.5;
-            washSource.connect(washFilter);
-            washFilter.connect(washGain);
-            washGain.connect(gainNode);
-          }
-
-          // Start oscillators and noise
-          oscs.forEach(osc => osc.start());
-          if (turboOsc) turboOsc.start();
-          if (turbineOsc) turbineOsc.start();
-          if (lfo) lfo.start();
-          
-          noiseSource.start();
-          washSource.start();
-
-          filter.connect(rumbleGain);
-          gainNode.connect(compressor);
-
-          engineNodeRef.current = {
-            oscillators: oscs,
-            turboOsc,
-            turbineOsc,
-            lfo,
-            filter,
-            rumbleGain,
-            modulatorGain,
-            bubblingModGain,
-            noiseSource,
-            noiseFilter,
-            noiseGain,
-            washSource,
-            washFilter,
-            washGain,
-            gainNode,
-            compressor
-          };
-          (engineNodeRef.current as any).type = 'ship';
-          (engineNodeRef.current as any).shipClass = shipClass;
-          (engineNodeRef.current as any).turboGain = turboGain;
-          (engineNodeRef.current as any).turbineGain = turbineGain;
-        }
-
-        // Apply initial configurations
-        const absThrottle = Math.abs(throttle) / 100;
-        const baseFreq = shipClass === 'zodiac' ? 65 : shipClass === 'patrol' ? 45 : shipClass === 'corvette' ? 32 : 26;
-        const engineFreq = baseFreq + absThrottle * baseFreq * 1.5;
-
-        const currentRef = engineNodeRef.current;
-        const { oscillators, turboOsc, turbineOsc, lfo, filter, noiseFilter, noiseGain, washFilter, washGain, gainNode } = currentRef;
-
-        if (shipClass === 'zodiac') {
-          oscillators[0].frequency.setValueAtTime(engineFreq, ctx.currentTime);
-          oscillators[1].frequency.setValueAtTime(engineFreq * 2.0, ctx.currentTime);
-          if (lfo) lfo.frequency.setValueAtTime(8 + absThrottle * 22, ctx.currentTime);
-          if (filter) filter.frequency.setValueAtTime(engineFreq * 3.5, ctx.currentTime);
-          if (noiseFilter) noiseFilter.frequency.setValueAtTime(300 + absThrottle * 200, ctx.currentTime);
-          if (noiseGain) noiseGain.gain.setValueAtTime(0.04 + absThrottle * 0.08, ctx.currentTime);
-        } else if (shipClass === 'patrol') {
-          oscillators[0].frequency.setValueAtTime(engineFreq, ctx.currentTime);
-          oscillators[1].frequency.setValueAtTime(engineFreq * 0.992, ctx.currentTime); // detuned
-          oscillators[2].frequency.setValueAtTime(engineFreq * 0.5, ctx.currentTime);
-          oscillators[3].frequency.setValueAtTime(engineFreq * 0.992 * 0.5, ctx.currentTime);
-          if (lfo) lfo.frequency.setValueAtTime(5 + absThrottle * 9, ctx.currentTime);
-          if (filter) filter.frequency.setValueAtTime(engineFreq * 2.8, ctx.currentTime);
-          
-          if (turboOsc) {
-            turboOsc.frequency.setValueAtTime(650 + absThrottle * 1400, ctx.currentTime);
-            const tg = (currentRef as any).turboGain;
-            if (tg) tg.gain.setValueAtTime(Math.pow(absThrottle, 1.8) * 0.025, ctx.currentTime);
-          }
-          if (noiseFilter) noiseFilter.frequency.setValueAtTime(100 + absThrottle * 80, ctx.currentTime);
-          if (noiseGain) noiseGain.gain.setValueAtTime(0.03 + absThrottle * 0.05, ctx.currentTime);
-          if (washFilter) washFilter.frequency.setValueAtTime(200 + absThrottle * 150, ctx.currentTime);
-          if (washGain) washGain.gain.setValueAtTime(0.02 + absThrottle * 0.08, ctx.currentTime);
-        } else if (shipClass === 'corvette') {
-          oscillators[0].frequency.setValueAtTime(engineFreq, ctx.currentTime);
-          oscillators[1].frequency.setValueAtTime(engineFreq * 0.995, ctx.currentTime); // detuned
-          oscillators[2].frequency.setValueAtTime(engineFreq * 0.5, ctx.currentTime);
-          oscillators[3].frequency.setValueAtTime(engineFreq * 0.995 * 0.5, ctx.currentTime);
-          if (lfo) lfo.frequency.setValueAtTime(4 + absThrottle * 7, ctx.currentTime);
-          if (filter) filter.frequency.setValueAtTime(engineFreq * 2.2, ctx.currentTime);
-          if (turboOsc) {
-            turboOsc.frequency.setValueAtTime(400 + absThrottle * 800, ctx.currentTime);
-            const tg = (currentRef as any).turboGain;
-            if (tg) tg.gain.setValueAtTime(Math.pow(absThrottle, 1.8) * 0.015, ctx.currentTime);
-          }
-          if (noiseFilter) noiseFilter.frequency.setValueAtTime(70 + absThrottle * 50, ctx.currentTime);
-          if (noiseGain) noiseGain.gain.setValueAtTime(0.04 + absThrottle * 0.06, ctx.currentTime);
-          if (washFilter) washFilter.frequency.setValueAtTime(150 + absThrottle * 100, ctx.currentTime);
-          if (washGain) washGain.gain.setValueAtTime(0.03 + absThrottle * 0.09, ctx.currentTime);
-        } else if (shipClass === 'frigate') {
-          oscillators[0].frequency.setValueAtTime(engineFreq, ctx.currentTime);
-          oscillators[1].frequency.setValueAtTime(engineFreq * 0.993, ctx.currentTime); // detuned
-          oscillators[2].frequency.setValueAtTime(engineFreq * 0.5, ctx.currentTime);
-          if (lfo) lfo.frequency.setValueAtTime(3.8 + absThrottle * 6.5, ctx.currentTime);
-          if (filter) filter.frequency.setValueAtTime(engineFreq * 2.5, ctx.currentTime);
-          if (turbineOsc) {
-            turbineOsc.frequency.setValueAtTime(1000 + absThrottle * 2200, ctx.currentTime);
-            const tg = (currentRef as any).turbineGain;
-            if (tg) tg.gain.setValueAtTime(Math.pow(absThrottle, 2.0) * 0.02, ctx.currentTime);
-          }
-          if (noiseFilter) noiseFilter.frequency.setValueAtTime(80 + absThrottle * 60, ctx.currentTime);
-          if (noiseGain) noiseGain.gain.setValueAtTime(0.03 + absThrottle * 0.05, ctx.currentTime);
-          if (washFilter) washFilter.frequency.setValueAtTime(120 + absThrottle * 120, ctx.currentTime);
-          if (washGain) washGain.gain.setValueAtTime(0.04 + absThrottle * 0.11, ctx.currentTime);
-        }
-
-        const targetGain = 0.35 + absThrottle * 0.45;
-        gainNode.gain.setTargetAtTime(targetGain, ctx.currentTime, 0.1);
-      }
-    } catch (e) {
-      console.error('Engine sound error', e);
-    }
-  };
-
-  const stopEngineSound = () => {
-    if (engineNodeRef.current) {
-      try {
-        engineNodeRef.current.oscillators.forEach(osc => {
-          try { osc.stop(); } catch (e) {}
-        });
-        if (engineNodeRef.current.turboOsc) {
-          try { engineNodeRef.current.turboOsc.stop(); } catch (e) {}
-        }
-        if (engineNodeRef.current.turbineOsc) {
-          try { engineNodeRef.current.turbineOsc.stop(); } catch (e) {}
-        }
-        if (engineNodeRef.current.lfo) {
-          try { engineNodeRef.current.lfo.stop(); } catch (e) {}
-        }
-        if (engineNodeRef.current.noiseSource) {
-          try { engineNodeRef.current.noiseSource.stop(); } catch (e) {}
-        }
-        if (engineNodeRef.current.washSource) {
-          try { engineNodeRef.current.washSource.stop(); } catch (e) {}
-        }
-        if (engineNodeRef.current.compressor) {
-          try { engineNodeRef.current.compressor.disconnect(); } catch (e) {}
-        }
-      } catch (e) {}
-      engineNodeRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    updateEngineSound();
-    return () => stopEngineSound();
-  }, [throttle, shipClass, simMode, engineSoundOn, heliSpeed, heliAltitude]);
-
-  const startHorn = () => {
-    try {
-      const ctx = getAudioContext();
-      if (hornNodeRef.current) return;
-
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      const osc3 = ctx.createOscillator();
-      const filter = ctx.createBiquadFilter();
-      const gainNode = ctx.createGain();
-
-      let f1 = 80, f2 = 81, f3 = 160;
-      let type: OscillatorType = 'sawtooth';
-      let cutoff = 150;
-      let vol = 0.25;
-
-      if (shipClass === 'zodiac') {
-        f1 = 380; f2 = 385; f3 = 760;
-        type = 'sawtooth';
-        cutoff = 800;
-        vol = 0.15;
-      } else if (shipClass === 'patrol') {
-        f1 = 220; f2 = 223; f3 = 440;
-        type = 'sawtooth';
-        cutoff = 400;
-        vol = 0.2;
-      } else if (shipClass === 'corvette') {
-        f1 = 130; f2 = 132; f3 = 260;
-        type = 'sawtooth';
-        cutoff = 250;
-        vol = 0.22;
-      }
-
-      osc1.frequency.value = f1;
-      osc2.frequency.value = f2;
-      osc3.frequency.value = f3;
-
-      osc1.type = type;
-      osc2.type = type;
-      osc3.type = 'triangle';
-
-      filter.type = 'lowpass';
-      filter.frequency.value = cutoff;
-
-      osc1.connect(filter);
-      osc2.connect(filter);
-      osc3.connect(filter);
-      filter.connect(gainNode);
-      gainNode.connect(ctx.destination);
-
-      gainNode.gain.setValueAtTime(0, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.05);
-
-      osc1.start();
-      osc2.start();
-      osc3.start();
-
-      hornNodeRef.current = { oscillators: [osc1, osc2, osc3], gainNode };
-    } catch (e) {
-      console.error('Horn sound error', e);
-    }
-  };
-
-  const stopHorn = () => {
-    if (hornNodeRef.current) {
-      try {
-        const ctx = getAudioContext();
-        const { oscillators, gainNode } = hornNodeRef.current;
-        gainNode.gain.setValueAtTime(gainNode.gain.value, ctx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-        setTimeout(() => {
-          try {
-            oscillators.forEach(osc => osc.stop());
-          } catch (e) {}
-        }, 150);
-      } catch (e) {}
-      hornNodeRef.current = null;
-    }
-  };
-
-  const shantyNotes = [
-    { note: 'A4', dur: 1.0 }, { note: 'A4', dur: 1.0 }, { note: 'A4', dur: 1.0 }, { note: 'A4', dur: 1.0 },
-    { note: 'A4', dur: 1.0 }, { note: 'D4', dur: 1.0 }, { note: 'F4', dur: 1.0 }, { note: 'A4', dur: 1.0 },
-    { note: 'G4', dur: 1.0 }, { note: 'G4', dur: 1.0 }, { note: 'G4', dur: 1.0 }, { note: 'G4', dur: 1.0 },
-    { note: 'G4', dur: 1.0 }, { note: 'C4', dur: 1.0 }, { note: 'E4', dur: 1.0 }, { note: 'G4', dur: 1.0 },
-    { note: 'A4', dur: 1.0 }, { note: 'A4', dur: 1.0 }, { note: 'A4', dur: 1.0 }, { note: 'A4', dur: 1.0 },
-    { note: 'A4', dur: 0.5 }, { note: 'B4', dur: 0.5 }, { note: 'C5', dur: 1.0 }, { note: 'B4', dur: 1.0 }, { note: 'A4', dur: 1.0 },
-    { note: 'G4', dur: 1.0 }, { note: 'F4', dur: 1.0 }, { note: 'E4', dur: 1.0 }, { note: 'D4', dur: 1.0 },
-    { note: 'D4', dur: 2.0 }
-  ];
-
-  const noteFreqs: { [key: string]: number } = {
-    'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00,
-    'A4': 440.00, 'B4': 493.88, 'C5': 523.25
-  };
-
-  const playShantyLoop = (index = 0) => {
-    if (!musicPlayingRef.current) return;
-    try {
-      const ctx = getAudioContext();
-      const item = shantyNotes[index];
-      const freq = noteFreqs[item.note];
-      
-      const osc = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      
-      osc.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      
-      const tempo = 140;
-      const beatDuration = 60 / tempo;
-      const duration = item.dur * beatDuration;
-      
-      gainNode.gain.setValueAtTime(0, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.04, ctx.currentTime + 0.02);
-      gainNode.gain.setValueAtTime(0.04, ctx.currentTime + duration - 0.03);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-      
-      osc.start();
-      osc.stop(ctx.currentTime + duration);
-      
-      const nextIndex = (index + 1) % shantyNotes.length;
-      const timeoutId = window.setTimeout(() => {
-        playShantyLoop(nextIndex);
-      }, duration * 1000);
-      
-      musicTimeoutsRef.current.push(timeoutId);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const stopMusic = () => {
-    musicTimeoutsRef.current.forEach(t => clearTimeout(t));
-    musicTimeoutsRef.current = [];
-  };
-
-  const musicPlayingRef = useRef<boolean>(false);
-  useEffect(() => {
-    musicPlayingRef.current = musicPlaying;
-    if (musicPlaying) {
-      playShantyLoop(0);
-    } else {
-      stopMusic();
-    }
-    return () => stopMusic();
-  }, [musicPlaying]);
-
+  // Generate Map Islands
   useEffect(() => {
     const generateIsland = (cx: number, cy: number, radius: number) => {
       const points: number[][] = [];
@@ -1187,9 +170,9 @@ export default function ShipSim() {
         let baseY = -x + 2200;
         if (x >= 600 && x <= 800) {
           const ratio = (x - 600) / 200;
-          baseY = ratio * (-x + 2200) + (1 - ratio) * 250; // Meets the back of the jetty breakwaters
+          baseY = ratio * (-x + 2200) + (1 - ratio) * 250;
         } else if (x >= 400 && x < 600) {
-          baseY = 250; // flat shore at harbor entrance back
+          baseY = 250;
         } else if (x >= 200 && x < 400) {
           const ratio = (400 - x) / 200;
           baseY = ratio * (-x + 2200) + (1 - ratio) * 250;
@@ -1208,7 +191,7 @@ export default function ShipSim() {
       islandsRef.current = pasadenaIslands;
     } else {
       const newIslands = [];
-      for(let i=0; i<4; i++) {
+      for (let i = 0; i < 4; i++) {
         let cx = (Math.random() * 1000) - 600; 
         let cy = (Math.random() - 0.5) * 1200;
         if (Math.abs(cx - 500) < 300 && Math.abs(cy - 50) < 300) {
@@ -1221,108 +204,162 @@ export default function ShipSim() {
     }
   }, [portMode]);
 
-  // Draggable & Resizable panel state
-  const [panelScale, setPanelScale] = useState(1);
-  const [panelPos, setPanelPos] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStart = useRef({ x: 0, y: 0, panelX: 0, panelY: 0 });
-
-  // Custom Throttle Lever State
-  const [isDraggingLever, setIsDraggingLever] = useState(false);
-  const leverTrackRef = useRef<HTMLDivElement>(null);
-
-  const updateLeverFromEvent = (e: React.PointerEvent) => {
-    if (!leverTrackRef.current) return;
-    const rect = leverTrackRef.current.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    let pct = 1 - (y / rect.height); // 0 to 1 (bottom to top)
-    pct = Math.max(0, Math.min(1, pct));
-    const val = Math.round((pct * 200) - 100);
-    if (Math.abs(val) < 5) setThrottle(0);
-    else setThrottle(val);
-  };
-
-  const handleLeverPointerDown = (e: React.PointerEvent) => {
-    e.stopPropagation();
-    setIsDraggingLever(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
-    updateLeverFromEvent(e);
-  };
-
-  const handleLeverPointerMove = (e: React.PointerEvent) => {
-    e.stopPropagation();
-    if (isDraggingLever) {
-      updateLeverFromEvent(e);
-    }
-  };
-
-  const handleLeverPointerUp = (e: React.PointerEvent) => {
-    e.stopPropagation();
-    setIsDraggingLever(false);
-    e.currentTarget.releasePointerCapture(e.pointerId);
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'BUTTON') return;
-    if ((e.target as HTMLElement).closest('.steering-wheel-container') || (e.target as HTMLElement).closest('.lever-container')) return;
-    setIsDragging(true);
-    dragStart.current = { x: e.clientX, y: e.clientY, panelX: panelPos.x, panelY: panelPos.y };
-  };
-
-  // Steering Mode
-  const [steeringMode, setSteeringMode] = useState<'azimuth'|'wheel'>('azimuth');
-  const [isTurningWheel, setIsTurningWheel] = useState(false);
-  const wheelRef = useRef<HTMLDivElement>(null);
-
-  const updateWheelAngle = (clientX: number, clientY: number) => {
-    if (!wheelRef.current) return;
-    const rect = wheelRef.current.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const dx = clientX - centerX;
-    const dy = clientY - centerY;
-    
-    let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-    if (angle > 180) angle -= 360;
-    if (angle > 45) angle = 45;
-    if (angle < -45) angle = -45;
-    if (Math.abs(angle) < 6) angle = 0;
-    
-    setRudder(Math.round(angle));
-  };
-
+  // Instantiate background physics Web Worker
   useEffect(() => {
-    if (!isTurningWheel) return;
-    const handlePointerMove = (e: PointerEvent) => {
-      updateWheelAngle(e.clientX, e.clientY);
-    };
-    const handlePointerUp = () => setIsTurningWheel(false);
+    const worker = new Worker(new URL('../workers/physics.worker.ts', import.meta.url), {
+      type: 'module'
+    });
+    physicsWorkerRef.current = worker;
     
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
+    worker.postMessage({
+      type: 'init',
+      payload: {
+        x: shipState.current.x,
+        y: shipState.current.y,
+        heading: shipState.current.heading,
+        speed: shipState.current.speed,
+        shipClass,
+        portMode,
+        isDocked,
+        snapX: tieUpDataRef.current.snapX,
+        snapY: tieUpDataRef.current.snapY,
+        snapH: tieUpDataRef.current.snapH
+      }
+    });
+
+    worker.onmessage = (e) => {
+      const { type, payload } = e.data;
+      if (type === 'physics_update') {
+        shipState.current.x = payload.x;
+        shipState.current.y = payload.y;
+        shipState.current.heading = payload.heading;
+        shipState.current.speed = payload.speed;
+        
+        setCanTieUp(payload.canTieUp);
+        
+        if (payload.collision) {
+          if (useSimStore.getState().damageEnabled) {
+            setShipDamage(d => Math.min(100, d + payload.collisionImpact * 15 + 2));
+          }
+          playBeep(120, 0.15); // collision thump
+        }
+        
+        if (payload.crossedGateIndex !== -1) {
+          const active = useSimStore.getState().activeCourse;
+          if (active) {
+            const updatedGates = [...active.gates];
+            updatedGates[payload.crossedGateIndex] = {
+              ...updatedGates[payload.crossedGateIndex],
+              passed: true
+            };
+            setActiveCourse({ ...active, gates: updatedGates });
+            playBeep(880, 0.25); // checkpoint gate crossed
+          }
+        }
+        
+        tieUpDataRef.current = {
+          snapX: payload.snapX,
+          snapY: payload.snapY,
+          snapH: payload.snapH
+        };
+      }
+    };
+    
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
+      worker.postMessage({ type: 'stop' });
+      worker.terminate();
     };
-  }, [isTurningWheel]);
+  }, []);
 
+  // Sync islands list to physics worker when map loads
   useEffect(() => {
-    if (!isDragging) return;
-    const handleMouseMove = (e: MouseEvent) => {
-      setPanelPos({
-        x: dragStart.current.panelX + (e.clientX - dragStart.current.x),
-        y: dragStart.current.panelY + (e.clientY - dragStart.current.y)
+    if (physicsWorkerRef.current) {
+      physicsWorkerRef.current.postMessage({
+        type: 'set_islands',
+        payload: { islands }
       });
-    };
-    const handleMouseUp = () => setIsDragging(false);
+    }
+  }, [islands]);
+
+  // Sync steering inputs to physics worker
+  useEffect(() => {
+    if (physicsWorkerRef.current) {
+      physicsWorkerRef.current.postMessage({
+        type: 'update_inputs',
+        payload: {
+          throttle,
+          rudder,
+          bowThruster,
+          sternThruster,
+          windSpeed,
+          windDir,
+          currentSpeed,
+          currentDir,
+          jettyType,
+          shipClass,
+          damageEnabled,
+          portMode,
+          isDocked,
+          simMode,
+          snapX: tieUpDataRef.current.snapX,
+          snapY: tieUpDataRef.current.snapY,
+          snapH: tieUpDataRef.current.snapH
+        }
+      });
+    }
+  }, [throttle, rudder, bowThruster, sternThruster, windSpeed, windDir, currentSpeed, currentDir, jettyType, shipClass, damageEnabled, portMode, isDocked, simMode]);
+
+  // Reset positions when map mode changes
+  useEffect(() => {
+    const isPasadena = portMode === 'pasadena';
+    const startX = isPasadena ? 500 : 460;
+    const startY = isPasadena ? 120 : 150;
+    const state = shipState.current;
     
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging]);
+    state.x = startX;
+    state.y = startY;
+    state.heading = 0;
+    state.speed = 0;
+    prevPosRef.current = { x: startX, y: startY };
+    
+    setThrottle(0);
+    setRudder(0);
+    setBowThruster(0);
+    setSternThruster(0);
+    setIsDocked(false);
+    tieUpDataRef.current = { snapX: startX, snapY: startY, snapH: 0 };
+    
+    if (physicsWorkerRef.current) {
+      physicsWorkerRef.current.postMessage({
+        type: 'reset_position',
+        payload: { x: startX, y: startY, heading: 0, speed: 0, isDocked: false, snapX: startX, snapY: startY, snapH: 0 }
+      });
+    }
+    
+    if (isPasadena) {
+      setShipClass('zodiac');
+    }
+  }, [portMode]);
+
+  // Monitor activeCourse completion reactively
+  useEffect(() => {
+    if (activeCourse && !courseCompleted) {
+      const allPassed = activeCourse.gates.every(g => g.passed);
+      if (allPassed) {
+        if (activeCourse.berthRequired) {
+          if (isDocked) {
+            setCourseCompleted(true);
+            playBeep(1000, 0.15);
+            setTimeout(() => playBeep(1300, 0.3), 150);
+          }
+        } else {
+          setCourseCompleted(true);
+          playBeep(1000, 0.15);
+          setTimeout(() => playBeep(1300, 0.3), 150);
+        }
+      }
+    }
+  }, [activeCourse, isDocked, courseCompleted]);
 
   // Canvas interaction for movable buoys
   const draggingBuoyRef = useRef<string | null>(null);
@@ -1337,27 +374,22 @@ export default function ShipSim() {
     const dx_rect = clickX - rect.width / 2;
     const dy_rect = clickY - rect.height / 2;
     
-    // object-cover scales uniformly to cover the element, keeping it centered.
     const scale = Math.max(rect.width / canvas.width, rect.height / canvas.height);
-    
-    // Adjust dx and dy by the zoom level so clicks remain accurate when zoomed in or out
     const dx = (dx_rect / scale) / zoomRef.current;
     const dy = (dy_rect / scale) / zoomRef.current;
     
     const clientX = dx + canvas.width / 2;
     const clientY = dy + canvas.height / 2;
     
-    // Convert to world space
     const state = shipState.current;
-    
+
     // Helipad interaction
-    if (controlsRef.current.simMode === 'ship' && controlsRef.current.shipClass === 'frigate') {
+    if (useSimStore.getState().simMode === 'ship' && useSimStore.getState().shipClass === 'frigate') {
         const cosH = Math.cos(-state.heading);
         const sinH = Math.sin(-state.heading);
         const shipLocalX = dx * cosH - dy * sinH;
         const shipLocalY = dx * sinH + dy * cosH;
         
-        // scale back to unscaled coordinates (frigate scale is 2.8125)
         const unscaledX = shipLocalX / 2.8125;
         const unscaledY = shipLocalY / 2.8125;
         
@@ -1382,8 +414,8 @@ export default function ShipSim() {
     const worldY = clientY + state.y - canvas.height / 2;
 
     for (const buoy of buoys.current) {
-      if ((buoy.type === 'port' && !controlsRef.current.showPortBuoy) ||
-          (buoy.type === 'starboard' && !controlsRef.current.showStbdBuoy)) continue;
+      if ((buoy.type === 'port' && !showPortBuoy) ||
+          (buoy.type === 'starboard' && !showStbdBuoy)) continue;
           
       const dist = Math.hypot(buoy.x - worldX, buoy.y - worldY);
       if (dist < 30) {
@@ -1405,7 +437,6 @@ export default function ShipSim() {
     const dy_rect = clickY - rect.height / 2;
     
     const scale = Math.max(rect.width / canvas.width, rect.height / canvas.height);
-    
     const dx = dx_rect / scale;
     const dy = dy_rect / scale;
     
@@ -1427,7 +458,7 @@ export default function ShipSim() {
     draggingBuoyRef.current = null;
   };
 
-  // Keyboard shortcuts
+  // Keyboard shortcut listeners
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'h' || e.key === 'H') {
@@ -1437,30 +468,30 @@ export default function ShipSim() {
         return;
       }
 
-      if (controlsRef.current.simMode === 'heli') {
+      if (useSimStore.getState().simMode === 'heli') {
         if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
           e.preventDefault();
-          heliState.current.heading -= 0.1; // Turn left (Port)
+          heliState.current.heading -= 0.1;
         }
         if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
           e.preventDefault();
-          heliState.current.heading += 0.1; // Turn right (Starboard)
+          heliState.current.heading += 0.1;
         }
         if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
           e.preventDefault();
-          setHeliSpeed(prev => Math.min(30, prev + 2)); // Speed up
+          setHeliSpeed(prev => Math.min(30, prev + 2));
         }
-        if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+        if (e.key === 'ArrowDown' || e.key === 'x' || e.key === 'X') {
           e.preventDefault();
-          setHeliSpeed(prev => Math.max(-10, prev - 2)); // Slow down / reverse
+          setHeliSpeed(prev => Math.max(-10, prev - 2));
         }
         if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'q' || e.key === 'Q' || e.key === 'PageUp') {
           e.preventDefault();
-          setHeliAltitude(prev => Math.min(100, prev + 5)); // Climb
+          setHeliAltitude(prev => Math.min(100, prev + 5));
         }
         if (e.key === 'Shift' || e.key === 'z' || e.key === 'Z' || e.key === 'PageDown') {
           e.preventDefault();
-          setHeliAltitude(prev => Math.max(0, prev - 5)); // Descend
+          setHeliAltitude(prev => Math.max(0, prev - 5));
         }
         return;
       }
@@ -1471,7 +502,6 @@ export default function ShipSim() {
       if (e.key === 'x' || e.key === 'X') { setThrottle(prev => Math.max(-100, prev - 5)); }
       if (e.key === 's' || e.key === 'S') { setThrottle(0); }
       
-      // Momentary side thrusters controls
       if (e.key === 'a' || e.key === 'A') { setBowThruster(-100); }
       if (e.key === 'd' || e.key === 'D') { setBowThruster(100); }
       if (e.key === 'z' || e.key === 'Z') { setSternThruster(-100); }
@@ -1484,8 +514,7 @@ export default function ShipSim() {
         stopHorn();
       }
       
-      // Releasing momentary side thrusters sets them back to 0
-      if (controlsRef.current.simMode === 'ship') {
+      if (useSimStore.getState().simMode === 'ship') {
         if (e.key === 'a' || e.key === 'A' || e.key === 'd' || e.key === 'D') {
           setBowThruster(0);
         }
@@ -1503,7 +532,7 @@ export default function ShipSim() {
     };
   }, [shipClass]);
 
-  // Rendering loop for the canvas
+  // Main Animation rendering frame loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1522,138 +551,19 @@ export default function ShipSim() {
       }
 
       frameCount++;
-
       const dt = (time - lastTime) / 1000;
       lastTime = time;
 
-      // Update physics
+      // Extract details from Zustand store (fresh lookup)
+      const currentStore = useSimStore.getState();
       const state = shipState.current;
-      const { throttle, shipClass, simMode, engineSoundOn } = controlsRef.current;
-
-      // Define visual scale parameters for ship size and offsets
-      let visualScale = 1.5625;
-      if (shipClass === 'zodiac') visualScale = 0.78125;
-      else if (shipClass === 'corvette') visualScale = 1.875;
-      else if (shipClass === 'frigate') visualScale = 2.8125;
-
+      const visualScale = SHIP_SPECS[currentStore.shipClass]?.visualScale || 1.5625;
+      
       const dockWorldX = 500;
       const dockWorldY = 50;
 
-      let berthZone = { x: -80, y: 20, w: 70, h: 160 };
-      if (controlsRef.current.portMode === 'pasadena') {
-        berthZone = { x: -27, y: 80, w: 54, h: 80 };
-      } else {
-        switch (controlsRef.current.jettyType) {
-          case 'straight': berthZone = { x: -80, y: 20, w: 70, h: 160 }; break;
-          case 'l-shape': berthZone = { x: -80, y: 40, w: 80, h: 140 }; break;
-          case 'u-shape': berthZone = { x: -100, y: 40, w: 100, h: 120 }; break;
-          case 't-shape': berthZone = { x: -150, y: 20, w: 60, h: 160 }; break;
-        }
-      }
-
-      const course = activeCourseRef.current;
-      
-      // Update engine sound continuously based on actual underway speed
-      if (audioCtxRef.current && engineNodeRef.current && engineSoundOn) {
-        const speedVal = simMode === 'heli' ? heliState.current.speed : state.speed;
-        const maxSpeed = simMode === 'heli' ? 30 : 15;
-        const speedRatio = Math.min(1.0, Math.abs(speedVal) / maxSpeed);
-
-        const baseFreq = simMode === 'heli' 
-          ? (120 + speedRatio * 90 + (heliState.current.altitude / 100) * 50)
-          : (shipClass === 'zodiac' ? 65 : shipClass === 'patrol' ? 45 : shipClass === 'corvette' ? 32 : 26);
-          
-        const currentRefNode = engineNodeRef.current;
-        const { oscillators, lfo, filter, noiseFilter, noiseGain, washFilter, washGain, gainNode } = currentRefNode;
-        const turboOsc = currentRefNode.turboOsc;
-        const turbineOsc = currentRefNode.turbineOsc;
-
-        if (simMode === 'heli') {
-          oscillators[0].frequency.setTargetAtTime(baseFreq, audioCtxRef.current.currentTime, 0.1);
-          oscillators[1].frequency.setTargetAtTime(50 + speedRatio * 30, audioCtxRef.current.currentTime, 0.1);
-          if (lfo) lfo.frequency.setTargetAtTime(10 + speedRatio * 8, audioCtxRef.current.currentTime, 0.1);
-          if (filter) filter.frequency.setTargetAtTime(250 + speedRatio * 150, audioCtxRef.current.currentTime, 0.1);
-          if (noiseFilter) noiseFilter.frequency.setTargetAtTime(180 + speedRatio * 120, audioCtxRef.current.currentTime, 0.1);
-          if (noiseGain) noiseGain.gain.setTargetAtTime(0.08 + speedRatio * 0.08, audioCtxRef.current.currentTime, 0.1);
-          
-          const targetGain = 0.07 + speedRatio * 0.09 + (heliState.current.altitude / 100) * 0.04;
-          gainNode.gain.setTargetAtTime(targetGain, audioCtxRef.current.currentTime, 0.1);
-        } else {
-          // Average of throttle input and actual underway speed to simulate engine load
-          const absThrottle = Math.abs(throttle) / 100;
-          const loadRatio = (speedRatio + absThrottle) / 2;
-          const engineFreq = baseFreq + loadRatio * baseFreq * 1.5;
-          
-          if (shipClass === 'zodiac') {
-            oscillators[0].frequency.setTargetAtTime(engineFreq, audioCtxRef.current.currentTime, 0.15);
-            oscillators[1].frequency.setTargetAtTime(engineFreq * 2.0, audioCtxRef.current.currentTime, 0.15);
-            if (lfo) lfo.frequency.setTargetAtTime(8 + loadRatio * 22, audioCtxRef.current.currentTime, 0.15);
-            if (filter) filter.frequency.setTargetAtTime(engineFreq * 3.5, audioCtxRef.current.currentTime, 0.15);
-            if (noiseFilter) noiseFilter.frequency.setTargetAtTime(300 + loadRatio * 200, audioCtxRef.current.currentTime, 0.15);
-            if (noiseGain) noiseGain.gain.setTargetAtTime(0.01 + loadRatio * 0.02, audioCtxRef.current.currentTime, 0.15);
-          } else if (shipClass === 'patrol') {
-            oscillators[0].frequency.setTargetAtTime(engineFreq, audioCtxRef.current.currentTime, 0.15);
-            oscillators[1].frequency.setTargetAtTime(engineFreq * 0.992, audioCtxRef.current.currentTime, 0.15);
-            oscillators[2].frequency.setTargetAtTime(engineFreq * 0.5, audioCtxRef.current.currentTime, 0.15);
-            oscillators[3].frequency.setTargetAtTime(engineFreq * 0.992 * 0.5, audioCtxRef.current.currentTime, 0.15);
-            if (lfo) lfo.frequency.setTargetAtTime(5 + loadRatio * 9, audioCtxRef.current.currentTime, 0.15);
-            if (filter) filter.frequency.setTargetAtTime(engineFreq * 2.8, audioCtxRef.current.currentTime, 0.15);
-            if (turboOsc) {
-              turboOsc.frequency.setTargetAtTime(650 + loadRatio * 1400, audioCtxRef.current.currentTime, 0.15);
-              const turboGainNode = (currentRefNode as any).turboGain;
-              if (turboGainNode) {
-                turboGainNode.gain.setTargetAtTime(Math.pow(loadRatio, 1.8) * 0.006, audioCtxRef.current.currentTime, 0.15);
-              }
-            }
-            if (noiseFilter) noiseFilter.frequency.setTargetAtTime(100 + loadRatio * 80, audioCtxRef.current.currentTime, 0.15);
-            if (noiseGain) noiseGain.gain.setTargetAtTime(0.008 + loadRatio * 0.012, audioCtxRef.current.currentTime, 0.15);
-            if (washFilter) washFilter.frequency.setTargetAtTime(200 + loadRatio * 150, audioCtxRef.current.currentTime, 0.15);
-            if (washGain) washGain.gain.setTargetAtTime(0.005 + loadRatio * 0.025, audioCtxRef.current.currentTime, 0.15);
-          } else if (shipClass === 'corvette') {
-            oscillators[0].frequency.setTargetAtTime(engineFreq, audioCtxRef.current.currentTime, 0.15);
-            oscillators[1].frequency.setTargetAtTime(engineFreq * 0.995, audioCtxRef.current.currentTime, 0.15);
-            oscillators[2].frequency.setTargetAtTime(engineFreq * 0.5, audioCtxRef.current.currentTime, 0.15);
-            oscillators[3].frequency.setTargetAtTime(engineFreq * 0.995 * 0.5, audioCtxRef.current.currentTime, 0.15);
-            if (lfo) lfo.frequency.setTargetAtTime(4 + loadRatio * 7, audioCtxRef.current.currentTime, 0.15);
-            if (filter) filter.frequency.setTargetAtTime(engineFreq * 2.2, audioCtxRef.current.currentTime, 0.15);
-            if (turboOsc) {
-              turboOsc.frequency.setTargetAtTime(400 + loadRatio * 800, audioCtxRef.current.currentTime, 0.15);
-              const turboGainNode = (currentRefNode as any).turboGain;
-              if (turboGainNode) {
-                turboGainNode.gain.setTargetAtTime(Math.pow(loadRatio, 1.8) * 0.004, audioCtxRef.current.currentTime, 0.15);
-              }
-            }
-            if (noiseFilter) noiseFilter.frequency.setTargetAtTime(70 + loadRatio * 50, audioCtxRef.current.currentTime, 0.15);
-            if (noiseGain) noiseGain.gain.setTargetAtTime(0.01 + loadRatio * 0.015, audioCtxRef.current.currentTime, 0.15);
-            if (washFilter) washFilter.frequency.setTargetAtTime(150 + loadRatio * 100, audioCtxRef.current.currentTime, 0.15);
-            if (washGain) washGain.gain.setTargetAtTime(0.01 + loadRatio * 0.03, audioCtxRef.current.currentTime, 0.15);
-          } else {
-            // Frigate
-            oscillators[0].frequency.setTargetAtTime(engineFreq, audioCtxRef.current.currentTime, 0.15);
-            oscillators[1].frequency.setTargetAtTime(engineFreq * 0.993, audioCtxRef.current.currentTime, 0.15);
-            oscillators[2].frequency.setTargetAtTime(engineFreq * 0.5, audioCtxRef.current.currentTime, 0.15);
-            if (lfo) lfo.frequency.setTargetAtTime(3.8 + loadRatio * 6.5, audioCtxRef.current.currentTime, 0.15);
-            if (filter) filter.frequency.setTargetAtTime(engineFreq * 2.5, audioCtxRef.current.currentTime, 0.15);
-            if (turbineOsc) {
-              turbineOsc.frequency.setTargetAtTime(1000 + loadRatio * 2200, audioCtxRef.current.currentTime, 0.15);
-              const turbineGainNode = (currentRefNode as any).turbineGain;
-              if (turbineGainNode) {
-                turbineGainNode.gain.setTargetAtTime(Math.pow(loadRatio, 2.0) * 0.005, audioCtxRef.current.currentTime, 0.15);
-              }
-            }
-            if (noiseFilter) noiseFilter.frequency.setTargetAtTime(80 + loadRatio * 60, audioCtxRef.current.currentTime, 0.15);
-            if (noiseGain) noiseGain.gain.setTargetAtTime(0.008 + loadRatio * 0.012, audioCtxRef.current.currentTime, 0.15);
-            if (washFilter) washFilter.frequency.setTargetAtTime(120 + loadRatio * 120, audioCtxRef.current.currentTime, 0.15);
-            if (washGain) washGain.gain.setTargetAtTime(0.01 + loadRatio * 0.04, audioCtxRef.current.currentTime, 0.15);
-          }
-          
-          const targetGain = 0.35 + loadRatio * 0.45;
-          gainNode.gain.setTargetAtTime(targetGain, audioCtxRef.current.currentTime, 0.1);
-        }
-      }
-      
-      // Physics calculations, environmental drift, and collisions are offloaded to the Web Worker background thread.
-      if (activeCourseRef.current && !courseCompletedRef.current) {
+      // Update active Course Elapsed Time
+      if (currentStore.activeCourse && !currentStore.courseCompleted) {
         const now = performance.now();
         if (courseStartTimeRef.current !== null) {
           const elapsed = (now - courseStartTimeRef.current) / 1000;
@@ -1661,38 +571,31 @@ export default function ShipSim() {
         }
       }
 
-      // No more wrap around screen, the world is endless (or bounded by islands)
-
       // Add wake particles if moving
       if (Math.abs(state.speed) > 0.5) {
         let localSternY = 26;
-        if (shipClass === 'zodiac') localSternY = 20;
-        else if (shipClass === 'corvette') localSternY = 39;
-        else if (shipClass === 'frigate') localSternY = 52;
+        if (currentStore.shipClass === 'zodiac') localSternY = 20;
+        else if (currentStore.shipClass === 'corvette') localSternY = 39;
+        else if (currentStore.shipClass === 'frigate') localSternY = 52;
 
         const sternX = state.x - Math.sin(state.heading) * (localSternY * visualScale);
         const sternY = state.y + Math.cos(state.heading) * (localSternY * visualScale);
         
-        if (shipClass === 'patrol' || shipClass === 'corvette' || shipClass === 'frigate') {
-          // Twin wakes for twin-thruster vessels
-          // Offset perpendicular to heading
+        if (currentStore.shipClass === 'patrol' || currentStore.shipClass === 'corvette' || currentStore.shipClass === 'frigate') {
           const offsetX = Math.cos(state.heading) * (4 * visualScale);
           const offsetY = Math.sin(state.heading) * (4 * visualScale);
           
-          // Port wake
           particlesRef.current.push({
             x: sternX - offsetX + (Math.random() - 0.5) * 4 * visualScale,
             y: sternY - offsetY + (Math.random() - 0.5) * 4 * visualScale,
             life: 1.5
           });
-          // Starboard wake
           particlesRef.current.push({
             x: sternX + offsetX + (Math.random() - 0.5) * 4 * visualScale,
             y: sternY + offsetY + (Math.random() - 0.5) * 4 * visualScale,
             life: 1.5
           });
         } else {
-          // Single wake for outboard/single-screw
           particlesRef.current.push({
             x: sternX + (Math.random() - 0.5) * 8 * visualScale,
             y: sternY + (Math.random() - 0.5) * 8 * visualScale,
@@ -1701,10 +604,10 @@ export default function ShipSim() {
         }
       }
 
-      // Emit smoke from ship funnels/exhaust stacks
-      if (simMode === 'ship' && frameCount % 6 === 0) {
-        const windAngle = (windDir + 180) * (Math.PI / 180);
-        const windVel = windSpeed * 0.15;
+      // Funnel Stack smoke particle emission
+      if (currentStore.simMode === 'ship' && frameCount % 6 === 0) {
+        const windAngle = (currentStore.windDir + 180) * (Math.PI / 180);
+        const windVel = currentStore.windSpeed * 0.15;
         const windVx = Math.cos(windAngle) * windVel;
         const windVy = Math.sin(windAngle) * windVel;
 
@@ -1714,7 +617,6 @@ export default function ShipSim() {
         const spawnSmoke = (localX: number, localY: number) => {
           const worldX = state.x + (localX * cosH - localY * sinH);
           const worldY = state.y + (localX * sinH + localY * cosH);
-          
           const exhaustVx = -cosH * (4 + Math.abs(state.speed) * 0.3) + windVx;
           const exhaustVy = -sinH * (4 + Math.abs(state.speed) * 0.3) + windVy;
 
@@ -1728,39 +630,32 @@ export default function ShipSim() {
           });
         };
 
-        if (shipClass === 'corvette') {
+        if (currentStore.shipClass === 'corvette') {
           spawnSmoke(2 * visualScale, 0);
-        } else if (shipClass === 'frigate') {
+        } else if (currentStore.shipClass === 'frigate') {
           spawnSmoke(8 * visualScale, 0);
           spawnSmoke(-4 * visualScale, 0);
-        } else if (shipClass === 'patrol') {
+        } else if (currentStore.shipClass === 'patrol') {
           spawnSmoke(-8 * visualScale, -2 * visualScale);
           spawnSmoke(-8 * visualScale, 2 * visualScale);
         }
       }
 
-      // Helicopter Physics (Simplified for Sea Cadets)
-      if (controlsRef.current.simMode === 'heli') {
+      // Helicopter calculations
+      if (currentStore.simMode === 'heli') {
          const hState = heliState.current;
-         const hc = heliControlsRef.current;
-         
-         // Smoothly transition altitude to the target altitude
-         hState.altitude += (hc.altitude - hState.altitude) * dt * 2.0;
+         hState.altitude += (currentStore.heliAltitude - hState.altitude) * dt * 2.0;
          if (hState.altitude < 0.1) {
            hState.altitude = 0;
-           hState.speed = 0; // If on the ground, speed is 0
+           hState.speed = 0;
          } else {
-           // Smoothly transition speed to the target speed
-           hState.speed += (hc.speed - hState.speed) * dt * 2.0;
+           hState.speed += (currentStore.heliSpeed - hState.speed) * dt * 2.0;
          }
          
-         // Move helicopter in the direction of its heading
-         hState.x += Math.sin(hState.heading) * hState.speed * dt * 10; // Responsive speed multiplier
+         hState.x += Math.sin(hState.heading) * hState.speed * dt * 10;
          hState.y -= Math.cos(hState.heading) * hState.speed * dt * 10;
- 
-         // Check Mission Accomplished (landed safely on Jetty LZ)
+  
          if (hState.altitude === 0 && Math.abs(hState.speed) < 1) {
-            // Is it on the LZ? LZ is at world coords dockWorldX + 150, dockWorldY + 100
             const lzX = dockWorldX + 150;
             const lzY = dockWorldY + 100;
             if (Math.hypot(hState.x - lzX, hState.y - lzY) < 30) {
@@ -1769,7 +664,7 @@ export default function ShipSim() {
          }
       }
 
-      // Clear canvas
+      // Clear Canvas
       ctx.fillStyle = '#0f172a'; // slate-900 water color
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -1778,1348 +673,226 @@ export default function ShipSim() {
       ctx.scale(zoomRef.current, zoomRef.current);
       ctx.translate(-canvas.width / 2, -canvas.height / 2);
 
-      const camX = controlsRef.current.simMode === 'heli' ? heliState.current.x : state.x;
-      const camY = controlsRef.current.simMode === 'heli' ? heliState.current.y + 150 : state.y;
+      const camX = currentStore.simMode === 'heli' ? heliState.current.x : state.x;
+      const camY = currentStore.simMode === 'heli' ? heliState.current.y + 150 : state.y;
 
-      // Draw stylized dynamic water waves instead of grid
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)'; // faint sky-blue waves
-      ctx.lineWidth = 1.5;
-      const waveSize = 100;
-      const waveOffsetX = camX % waveSize;
-      const waveOffsetY = camY % waveSize;
-      const waveTime = Date.now() / 1000;
+      // Draw waves
+      renderer.drawWaves(ctx, canvas.width, canvas.height, camX, camY);
 
-      for (let y = -waveOffsetY - waveSize; y < canvas.height + waveSize; y += waveSize * 0.5) {
-        ctx.beginPath();
-        for (let x = -waveOffsetX - waveSize; x < canvas.width + waveSize; x += waveSize) {
-          const shift = Math.sin((x + y + waveTime * 50) * 0.02) * 10;
-          if (x === -waveOffsetX - waveSize) {
-            ctx.moveTo(x, y + shift);
-          } else {
-            ctx.quadraticCurveTo(x - waveSize/2, y - 10 + shift, x, y + shift);
-          }
-        }
-        ctx.stroke();
+      // Draw dock site boundary limits
+      ctx.save();
+      ctx.translate(canvas.width / 2 - camX, canvas.height / 2 - camY);
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 10;
+      
+      // Draw Jetties
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 4;
+      
+      if (currentStore.portMode === 'pasadena') {
+         // Pasadena Jetty
+         ctx.fillRect(dockWorldX - 10, dockWorldY, 20, 160);
+         ctx.strokeRect(dockWorldX - 10, dockWorldY, 20, 160);
+         
+         // Pasadena LZ
+         ctx.fillStyle = '#334155';
+         ctx.fillRect(dockWorldX + 130, dockWorldY + 80, 40, 40);
+         ctx.strokeRect(dockWorldX + 130, dockWorldY + 80, 40, 40);
+         
+         ctx.strokeStyle = '#ef4444';
+         ctx.lineWidth = 3;
+         ctx.beginPath();
+         ctx.arc(dockWorldX + 150, dockWorldY + 100, 12, 0, Math.PI * 2);
+         ctx.stroke();
+         ctx.fillStyle = '#ef4444';
+         ctx.font = 'bold 12px monospace';
+         ctx.textAlign = 'center';
+         ctx.textBaseline = 'middle';
+         ctx.fillText('H', dockWorldX + 150, dockWorldY + 100);
+      } else {
+         // Deer Lake / home maps breakwater straight jetties
+         switch (currentStore.jettyType) {
+           case 'straight':
+             ctx.fillRect(dockWorldX - 10, dockWorldY, 20, 160);
+             ctx.strokeRect(dockWorldX - 10, dockWorldY, 20, 160);
+             break;
+           case 'l-shape':
+             ctx.fillRect(dockWorldX - 10, dockWorldY, 20, 160);
+             ctx.strokeRect(dockWorldX - 10, dockWorldY, 20, 160);
+             ctx.fillRect(dockWorldX - 10, dockWorldY + 140, 120, 20);
+             ctx.strokeRect(dockWorldX - 10, dockWorldY + 140, 120, 20);
+             break;
+           case 'u-shape':
+             ctx.fillRect(dockWorldX - 60, dockWorldY, 20, 160);
+             ctx.strokeRect(dockWorldX - 60, dockWorldY, 20, 160);
+             ctx.fillRect(dockWorldX + 40, dockWorldY, 20, 160);
+             ctx.strokeRect(dockWorldX + 40, dockWorldY, 20, 160);
+             ctx.fillRect(dockWorldX - 60, dockWorldY, 120, 20);
+             ctx.strokeRect(dockWorldX - 60, dockWorldY, 120, 20);
+             break;
+           case 't-shape':
+             ctx.fillRect(dockWorldX - 10, dockWorldY, 20, 160);
+             ctx.strokeRect(dockWorldX - 10, dockWorldY, 20, 160);
+             ctx.fillRect(dockWorldX - 80, dockWorldY + 140, 160, 20);
+             ctx.strokeRect(dockWorldX - 80, dockWorldY + 140, 160, 20);
+             break;
+         }
       }
+      ctx.restore();
 
       // Draw islands
-      islandsRef.current.forEach(island => {
-        ctx.save();
-        ctx.translate(canvas.width / 2 - camX, canvas.height / 2 - camY);
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 15;
-        
-        // Calculate center for scaling
-        let cx = 0, cy = 0;
-        island.points.forEach(p => { cx += p[0]; cy += p[1]; });
-        cx /= island.points.length; cy /= island.points.length;
-        
-        const drawSmoothPoly = (points: number[][], scale: number = 1) => {
-          ctx.beginPath();
-          const scaledPoints = points.map(p => [cx + (p[0] - cx) * scale, cy + (p[1] - cy) * scale]);
-          
-          // Start at midpoint between last and first
-          ctx.moveTo((scaledPoints[0][0] + scaledPoints[scaledPoints.length-1][0])/2, 
-                     (scaledPoints[0][1] + scaledPoints[scaledPoints.length-1][1])/2);
-                     
-          for(let i=0; i<scaledPoints.length; i++) {
-            const next = scaledPoints[(i+1)%scaledPoints.length];
-            const curr = scaledPoints[i];
-            const midX = (curr[0] + next[0]) / 2;
-            const midY = (curr[1] + next[1]) / 2;
-            // Curve through current point to midpoint
-            ctx.quadraticCurveTo(curr[0], curr[1], midX, midY);
-          }
-          ctx.closePath();
-          ctx.fill();
-        };
-
-        // Sand beach border
-        ctx.fillStyle = '#fcd34d'; // amber-300
-        drawSmoothPoly(island.points, 1.0);
-        
-        // Grass interior
-        ctx.shadowColor = 'transparent';
-        ctx.fillStyle = '#166534'; // green-800
-        drawSmoothPoly(island.points, 0.85);
-        
-        // Bounding box collision indicator (sand/shoal obstacle warning)
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        island.points.forEach(p => {
-          if (p[0] < minX) minX = p[0];
-          if (p[0] > maxX) maxX = p[0];
-          if (p[1] < minY) minY = p[1];
-          if (p[1] > maxY) maxY = p[1];
-        });
-        ctx.strokeStyle = 'rgba(253, 224, 71, 0.35)'; // light amber-200 / yellow-300
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([6, 4]);
-        ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
-        ctx.setLineDash([]); // reset
-        
-        ctx.restore();
-      });
+      renderer.drawIslands(ctx, canvas.width, canvas.height, islandsRef.current, camX, camY);
 
       // Draw Pasadena site labels
-      if (controlsRef.current.portMode === 'pasadena') {
-        const labels = [
-          { name: 'LITTLE RAPIDS', x: -1500, y: 1750 },
-          { name: 'PASADENA Yacht Club', x: 500, y: 380 },
-          { name: 'PYNN\'S BROOK', x: 0, y: 250 },
-          { name: 'SAINT JUDES', x: 600, y: -350 },
-          { name: 'LAKE SIDING', x: 1200, y: -950 },
-          { name: 'NICHOLSVILLE / DEER LAKE', x: 1800, y: -1550 }
-        ];
-
-        ctx.save();
-        ctx.translate(canvas.width / 2 - camX, canvas.height / 2 - camY);
-        
-        labels.forEach(label => {
-          // Draw a small icon/dot for the station
-          ctx.fillStyle = '#f59e0b'; // Amber-500
-          ctx.beginPath();
-          ctx.arc(label.x, label.y, 4, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Labeled text
-          ctx.font = 'bold 11px monospace';
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'middle';
-          
-          // Draw subtle drop shadow text
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
-          ctx.fillText(label.name, label.x + 8, label.y + 1);
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-          ctx.fillText(label.name, label.x + 8, label.y);
-        });
-
-        ctx.restore();
+      if (currentStore.portMode === 'pasadena') {
+        renderer.drawPasadenaLabels(ctx, canvas.width, canvas.height, PASADENA_LABELS, camX, camY);
       }
 
-      // Draw particles (wake and stack smoke)
-      particlesRef.current = particlesRef.current.filter(p => p.life > 0);
-      
-      const windAngleForUpdate = (windDir + 180) * (Math.PI / 180);
-      const windVelForUpdate = windSpeed * 0.2;
-      const windVx = Math.cos(windAngleForUpdate) * windVelForUpdate;
-      const windVy = Math.sin(windAngleForUpdate) * windVelForUpdate;
+      // Update smoke particle movements
+      const windAngle = (currentStore.windDir + 180) * (Math.PI / 180);
+      const windVel = currentStore.windSpeed * 0.2;
+      const windVx = Math.cos(windAngle) * windVel;
+      const windVy = Math.sin(windAngle) * windVel;
 
+      particlesRef.current = particlesRef.current.filter(p => p.life > 0);
       particlesRef.current.forEach(p => {
         p.life -= dt;
         if (p.type === 'smoke') {
           p.x += (p.vx || 0) * dt + windVx * dt * 25;
           p.y += (p.vy || 0) * dt + windVy * dt * 25;
-
           if (p.vx) p.vx *= 0.95;
           if (p.vy) p.vy *= 0.95;
-
-          ctx.fillStyle = `rgba(148, 163, 184, ${p.life * 0.12})`;
-          ctx.beginPath();
-          ctx.arc(p.x - camX + canvas.width / 2, p.y - camY + canvas.height / 2, 4 + (2.0 - p.life) * 14, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          ctx.fillStyle = `rgba(255, 255, 255, ${p.life * 0.3})`;
-          ctx.beginPath();
-          ctx.arc(p.x - camX + canvas.width / 2, p.y - camY + canvas.height / 2, 2 + (1.5 - p.life) * 2, 0, Math.PI * 2);
-          ctx.fill();
         }
       });
 
-      // Draw buoys relative to ship (camera centered on ship)
-      const { showPortBuoy, showStbdBuoy } = controlsRef.current;
-      buoys.current.forEach(buoy => {
-        if (buoy.type === 'port' && !showPortBuoy) return;
-        if (buoy.type === 'starboard' && !showStbdBuoy) return;
-        
-        const screenX = buoy.x - camX + canvas.width / 2;
-        const screenY = buoy.y - camY + canvas.height / 2;
+      // Draw smoke / wake particles
+      renderer.drawParticles(ctx, canvas.width, canvas.height, particlesRef.current, camX, camY);
 
-        ctx.save();
-        ctx.translate(screenX, screenY);
-        
-        // Add a subtle highlight if we are dragging this buoy
-        if (draggingBuoyRef.current === buoy.id) {
-          ctx.shadowColor = '#ffffff';
-          ctx.shadowBlur = 10;
-        }
+      // Draw buoys
+      renderer.drawBuoys(
+        ctx,
+        canvas.width,
+        canvas.height,
+        buoys.current,
+        camX,
+        camY,
+        draggingBuoyRef.current,
+        showPortBuoy,
+        showStbdBuoy
+      );
 
-        if (buoy.type === 'port') {
-          // Green Port Hand Buoy (Square/Flat top)
-          ctx.fillStyle = '#22c55e'; // green-500
-          ctx.fillRect(-8, -10, 16, 20);
-          ctx.strokeStyle = '#166534';
-          ctx.strokeRect(-8, -10, 16, 20);
-        } else if (buoy.type === 'starboard') {
-          // Red Starboard Hand Buoy (Conical/Pointy top)
-          ctx.fillStyle = '#ef4444'; // red-500
-          ctx.beginPath();
-          ctx.moveTo(0, -15);
-          ctx.lineTo(10, 10);
-          ctx.lineTo(-10, 10);
-          ctx.closePath();
-          ctx.fill();
-          ctx.strokeStyle = '#991b1b';
-          ctx.stroke();
-        }
-        
-        ctx.restore();
-      });
+      // Draw custom placed buoys
+      renderer.drawCustomBuoys(ctx, canvas.width, canvas.height, customBuoysRef.current, camX, camY);
 
-      // Draw custom laid buoys
-      customBuoysRef.current.forEach((buoy) => {
-        const screenX = buoy.x - camX + canvas.width / 2;
-        const screenY = buoy.y - camY + canvas.height / 2;
+      // Draw active course checkpoints
+      renderer.drawCourseGates(ctx, canvas.width, canvas.height, currentStore.activeCourse, camX, camY);
 
-        ctx.save();
-        ctx.translate(screenX, screenY);
-        
-        const pulse = Math.sin(Date.now() / 200) * 4 + 8;
-        ctx.strokeStyle = buoy.color === 'yellow' ? 'rgba(234, 179, 8, 0.4)' : buoy.color === 'green' ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(0, 0, pulse, 0, Math.PI * 2);
-        ctx.stroke();
+      // Draw vessel
+      renderer.drawShip(
+        ctx,
+        canvas.width,
+        canvas.height,
+        currentStore.shipClass,
+        state,
+        currentStore.anchorDropped,
+        currentStore.navLightsOn,
+        currentStore.whiteLightsOn,
+        currentStore.bowThruster,
+        currentStore.sternThruster
+      );
 
-        if (buoy.color === 'green') {
-          ctx.fillStyle = '#22c55e';
-          ctx.fillRect(-6, -8, 12, 16);
-          ctx.strokeStyle = '#166534';
-          ctx.strokeRect(-6, -8, 12, 16);
-        } else if (buoy.color === 'red') {
-          ctx.fillStyle = '#ef4444';
-          ctx.beginPath();
-          ctx.moveTo(0, -12);
-          ctx.lineTo(8, 8);
-          ctx.lineTo(-8, 8);
-          ctx.closePath();
-          ctx.fill();
-          ctx.strokeStyle = '#991b1b';
-          ctx.stroke();
-        } else {
-          // Yellow Special Mark
-          ctx.fillStyle = '#eab308';
-          ctx.beginPath();
-          ctx.arc(0, 0, 7, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = '#a16207';
-          ctx.stroke();
-          // X topmark
-          ctx.strokeStyle = '#eab308';
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.moveTo(-3, -11); ctx.lineTo(3, -7);
-          ctx.moveTo(3, -11); ctx.lineTo(-3, -7);
-          ctx.stroke();
-        }
-
-        ctx.restore();
-      });
-
-      // Draw active course gates
-      if (course) {
-        course.gates.forEach((gate, idx) => {
-          const x1 = gate.x1 - camX + canvas.width / 2;
-          const y1 = gate.y1 - camY + canvas.height / 2;
-          const x2 = gate.x2 - camX + canvas.width / 2;
-          const y2 = gate.y2 - camY + canvas.height / 2;
-
-          const isNext = course.gates.findIndex(g => !g.passed) === idx;
-
-          ctx.save();
-          if (gate.passed) {
-            ctx.strokeStyle = 'rgba(34, 197, 94, 0.6)';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.stroke();
-          } else {
-            ctx.strokeStyle = isNext ? 'rgba(234, 179, 8, 0.8)' : 'rgba(148, 163, 184, 0.3)';
-            ctx.lineWidth = isNext ? 3 : 1.5;
-            if (isNext) {
-              ctx.setLineDash([8, 6]);
-              ctx.lineDashOffset = -Date.now() / 100;
-            } else {
-              ctx.setLineDash([4, 4]);
-            }
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.stroke();
-          }
-          ctx.restore();
-
-          const drawGateBuoy = (bx: number, by: number, type: 'port' | 'starboard') => {
-            ctx.save();
-            ctx.translate(bx, by);
-            
-            const glowRadius = Math.sin(Date.now() / 150) * 5 + 10;
-            ctx.shadowBlur = gate.passed ? 8 : (isNext ? glowRadius : 0);
-            ctx.shadowColor = type === 'port' ? '#22c55e' : '#ef4444';
-
-            if (type === 'port') {
-              ctx.fillStyle = '#22c55e';
-              ctx.fillRect(-8, -10, 16, 20);
-              ctx.strokeStyle = '#166534';
-              ctx.strokeRect(-8, -10, 16, 20);
-              
-              if (gate.passed || (Date.now() % 1000 < 500)) {
-                ctx.fillStyle = '#4ade80';
-                ctx.beginPath();
-                ctx.arc(0, -13, 3, 0, Math.PI * 2);
-                ctx.fill();
-              }
-            } else {
-              ctx.fillStyle = '#ef4444';
-              ctx.beginPath();
-              ctx.moveTo(0, -15);
-              ctx.lineTo(10, 10);
-              ctx.lineTo(-10, 10);
-              ctx.closePath();
-              ctx.fill();
-              ctx.strokeStyle = '#991b1b';
-              ctx.stroke();
-
-              if (gate.passed || (Date.now() % 1000 < 500)) {
-                ctx.fillStyle = '#f87171';
-                ctx.beginPath();
-                ctx.arc(0, -18, 3, 0, Math.PI * 2);
-                ctx.fill();
-              }
-            }
-
-            ctx.restore();
-          };
-
-          drawGateBuoy(x1, y1, 'port');
-          drawGateBuoy(x2, y2, 'starboard');
-
-          ctx.save();
-          const midX = (x1 + x2) / 2;
-          const midY = (y1 + y2) / 2;
-          ctx.fillStyle = gate.passed ? '#4ade80' : (isNext ? '#f59e0b' : '#94a3b8');
-          ctx.font = 'bold 11px monospace';
-          ctx.textAlign = 'center';
-          ctx.fillText(`GATE ${idx + 1}${gate.passed ? ' [OK]' : (isNext ? ' [TARGET]' : '')}`, midX, midY - 12);
-          ctx.restore();
-        });
-      }
-
-      // Draw the dock and mainland (relative to ship)
-      const dockX = 500 - camX + canvas.width / 2;
-      const dockY = 50 - camY + canvas.height / 2;
-      
-      ctx.save();
-      ctx.translate(dockX, dockY);
-      
-      // Draw Mainland continent attached to the right side of the dock
-      if (controlsRef.current.portMode !== 'pasadena') {
-        ctx.beginPath();
-        ctx.moveTo(250, -4000);
-        for(let y = -4000; y <= 4000; y += 100) {
-          // Procedural sine waves for irregular coast
-          const xOffset = Math.sin(y * 0.01) * 40 + Math.sin(y * 0.05) * 15;
-          ctx.lineTo(250 + xOffset, y);
-        }
-        ctx.lineTo(4250, 4000);
-        ctx.lineTo(4250, -4000);
-        ctx.closePath();
-        
-        ctx.lineWidth = 15;
-        ctx.strokeStyle = '#1e3a8a'; // deep blue shallow edge
-        ctx.stroke();
-        
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = '#b45309'; // beach edge
-        ctx.stroke();
-        
-        ctx.fillStyle = '#166534'; // green land
-        ctx.fill();
-      }
-
-      // Draw Berthing Zone Outline
-      if (!controlsRef.current.isDocked) {
-        ctx.strokeStyle = canTieUp ? 'rgba(52, 211, 153, 0.9)' : 'rgba(255, 255, 255, 0.3)';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([10, 10]);
-        ctx.strokeRect(berthZone.x, berthZone.y, berthZone.w, berthZone.h);
-        
-        ctx.fillStyle = canTieUp ? 'rgba(52, 211, 153, 0.15)' : 'rgba(255, 255, 255, 0.05)';
-        ctx.fillRect(berthZone.x, berthZone.y, berthZone.w, berthZone.h);
-        
-        ctx.fillStyle = canTieUp ? 'rgba(52, 211, 153, 0.9)' : 'rgba(255, 255, 255, 0.5)';
-        ctx.font = 'bold 14px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.setLineDash([]);
-        const centerX = berthZone.x + berthZone.w / 2;
-        const centerY = berthZone.y + berthZone.h / 2;
-        if (canTieUp) {
-          ctx.fillText('READY TO', centerX, centerY - 10);
-          ctx.fillText('TIE UP', centerX, centerY + 10);
-        } else {
-          ctx.fillText('BERTH', centerX, centerY - 10);
-          ctx.fillText('ZONE', centerX, centerY + 10);
-        }
-        ctx.textAlign = 'left'; // reset
-        ctx.textBaseline = 'alphabetic'; // reset
+      // Draw detached helicopter
+      if (currentStore.simMode === 'heli') {
+        renderer.drawHelicopter(ctx, canvas.width, canvas.height, camX, camY, heliState.current);
       }
 
       ctx.restore();
-      const { jettyType: currentJettyType, windSpeed: currentWindSpeed, windDir: currentWindDir } = controlsRef.current;
-      
-      ctx.save();
-      ctx.translate(dockX, dockY);
-      ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 10;
-      ctx.shadowOffsetX = 5;
-      ctx.shadowOffsetY = 5;
-      ctx.fillStyle = '#78350f'; // amber-900 wood
-      ctx.strokeStyle = '#451a03';
-      
-      if (controlsRef.current.portMode === 'pasadena') {
-        // 1. Draw Sandy Gravel Beach
-        ctx.fillStyle = '#cbd5e1'; // sandy gravel/slate-300
-        ctx.beginPath();
-        ctx.moveTo(-600, 200);
-        ctx.lineTo(600, 200);
-        ctx.lineTo(600, 420);
-        ctx.lineTo(-600, 420);
-        ctx.closePath();
-        ctx.fill();
 
-        // 2. Draw Forest background behind the beach
-        ctx.fillStyle = '#15803d'; // green-700
-        ctx.beginPath();
-        ctx.moveTo(-600, 260);
-        ctx.lineTo(600, 260);
-        ctx.lineTo(600, 420);
-        ctx.lineTo(-600, 420);
-        ctx.closePath();
-        ctx.fill();
-
-        // Draw individual Pine Trees (textured conifer look)
-        ctx.fillStyle = '#14532d'; // green-900
-        const drawTree = (tx: number, ty: number) => {
-          ctx.beginPath();
-          ctx.moveTo(tx, ty);
-          ctx.lineTo(tx - 12, ty + 30);
-          ctx.lineTo(tx + 12, ty + 30);
-          ctx.closePath();
-          ctx.fill();
-          // Trunk
-          ctx.fillStyle = '#451a03';
-          ctx.fillRect(tx - 2, ty + 30, 4, 6);
-          ctx.fillStyle = '#14532d'; // restore
-        };
-        // Organic placement matching trees in photo
-        drawTree(-250, 240);
-        drawTree(-220, 230);
-        drawTree(-280, 255);
-        drawTree(-190, 245);
-        drawTree(210, 230);
-        drawTree(240, 220);
-        drawTree(270, 250);
-        drawTree(300, 235);
-        drawTree(330, 240);
-
-        // 3. Draw Cadet Nautical Site building (metal boathouse with dark gabled roof)
-        ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.4)';
-        ctx.shadowBlur = 8;
-        ctx.shadowOffsetX = 3;
-        ctx.shadowOffsetY = 3;
-        
-        // Building walls
-        ctx.fillStyle = '#94a3b8'; // metal cladding
-        ctx.fillRect(160, 270, 75, 55);
-        ctx.strokeStyle = '#475569';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(160, 270, 75, 55);
-        
-        // Gabled Roof
-        ctx.fillStyle = '#1e293b'; // dark slate
-        ctx.beginPath();
-        ctx.moveTo(155, 295);
-        ctx.lineTo(197, 260);
-        ctx.lineTo(240, 295);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Parked boat trailers & small racks
-        ctx.shadowColor = 'transparent';
-        ctx.fillStyle = '#64748b'; // trailer frame
-        ctx.fillRect(125, 295, 22, 6);
-        ctx.fillRect(125, 315, 22, 6);
-        ctx.fillStyle = '#dc2626'; // red boats
-        ctx.fillRect(128, 293, 14, 4);
-        ctx.fillRect(128, 313, 14, 4);
-        ctx.restore();
-
-        // 4. Draw Riprap Textured Rock Breakwaters (as in the photo)
-        const drawRockBreakwater = (points: [number, number][]) => {
-          ctx.save();
-          // Draw base structural fill
-          ctx.beginPath();
-          ctx.moveTo(points[0][0], points[0][1]);
-          for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i][0], points[i][1]);
-          }
-          ctx.strokeStyle = '#475569';
-          ctx.lineWidth = 22;
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          ctx.stroke();
-
-          // Overlay individual boulder rocks
-          for (let i = 0; i < points.length - 1; i++) {
-            const p1 = points[i];
-            const p2 = points[i+1];
-            const dx = p2[0] - p1[0];
-            const dy = p2[1] - p1[1];
-            const len = Math.hypot(dx, dy);
-            const steps = Math.ceil(len / 7);
-            for (let s = 0; s <= steps; s++) {
-              const t = s / steps;
-              const rx = p1[0] + dx * t;
-              const ry = p1[1] + dy * t;
-              
-              const ox = Math.sin(s * 7.1) * 3.5;
-              const oy = Math.cos(s * 3.7) * 3.5;
-              const r = 9 + Math.sin(s * 2.3) * 2.5;
-              
-              const shade = Math.floor(110 + Math.sin(s * 5.9) * 45);
-              ctx.fillStyle = `rgb(${shade}, ${shade + 4}, ${shade + 8})`;
-              ctx.strokeStyle = '#27272a';
-              ctx.lineWidth = 1;
-              
-              ctx.beginPath();
-              ctx.arc(rx + ox, ry + oy, r, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.stroke();
-              
-              // Light highlight on each rock boulder
-              ctx.fillStyle = 'rgba(255,255,255,0.18)';
-              ctx.beginPath();
-              ctx.arc(rx + ox - r * 0.3, ry + oy - r * 0.3, r * 0.35, 0, Math.PI * 2);
-              ctx.fill();
-            }
-          }
-          ctx.restore();
-        };
-
-        // Left Breakwater (straight, moved away from docks)
-        drawRockBreakwater([[-120, 200], [-120, 45]]);
-
-        // Right Breakwater (straight, moved away from docks)
-        drawRockBreakwater([[120, 200], [120, 45]]);
-
-        // 5. Draw White Floating Finger Piers with wooden decks
-        const drawFloatingDock = (x: number, y: number, w: number, h: number) => {
-          ctx.save();
-          // Draw white floating pontoon base
-          ctx.fillStyle = '#f8fafc'; // white/slate-50
-          ctx.strokeStyle = '#475569';
-          ctx.lineWidth = 1.5;
-          ctx.fillRect(x, y, w, h);
-          ctx.strokeRect(x, y, w, h);
-
-          // Draw wooden walkway insert
-          ctx.fillStyle = '#d97706'; // amber-600 wood tone
-          ctx.fillRect(x + 1.5, y + 2, w - 3, h - 4);
-
-          // Draw dark gangway connection to shore
-          ctx.fillStyle = '#475569';
-          ctx.fillRect(x + 1, 200, w - 2, -120 + y);
-          ctx.fillStyle = '#94a3b8';
-          ctx.fillRect(x + 2, 200, w - 4, -120 + y);
-          
-          ctx.restore();
-        };
-
-        // Left Finger Pier
-        drawFloatingDock(-35, 80, 8, 80);
-
-        // Right Finger Pier
-        drawFloatingDock(27, 80, 8, 80);
-        
-      } else if (currentJettyType === 'straight') {
-        ctx.fillRect(0, 0, 40, 200);
-        ctx.strokeRect(0, 0, 40, 200);
-        ctx.fillRect(40, 80, 210, 40);
-        ctx.strokeRect(40, 80, 210, 40);
-      } else if (currentJettyType === 'l-shape') {
-        ctx.fillRect(0, 0, 40, 200);
-        ctx.fillRect(-100, 0, 100, 40);
-        ctx.fillRect(40, 80, 210, 40);
-        ctx.strokeRect(0, 0, 40, 200);
-        ctx.strokeRect(-100, 0, 100, 40);
-        ctx.strokeRect(40, 80, 210, 40);
-      } else if (currentJettyType === 'u-shape') {
-        ctx.fillRect(0, 0, 40, 200);
-        ctx.fillRect(-100, 0, 100, 40);
-        ctx.fillRect(-100, 160, 100, 40);
-        ctx.fillRect(40, 80, 210, 40);
-        ctx.strokeRect(0, 0, 40, 200);
-        ctx.strokeRect(-100, 0, 100, 40);
-        ctx.strokeRect(-100, 160, 100, 40);
-        ctx.strokeRect(40, 80, 210, 40);
-      } else if (currentJettyType === 't-shape') {
-        ctx.fillRect(-40, 80, 80, 40);
-        ctx.fillRect(-80, -40, 40, 280);
-        ctx.fillRect(40, 80, 210, 40);
-        ctx.strokeRect(-40, 80, 80, 40);
-        ctx.strokeRect(-80, -40, 40, 280);
-        ctx.strokeRect(40, 80, 210, 40);
-      }
-      
-      // Draw Windsock
-      ctx.shadowColor = 'transparent'; // No shadow for windsock to keep it clean
-      ctx.fillStyle = '#94a3b8'; // Pole
-      ctx.fillRect(18, 10, 4, 4); 
-      
-      ctx.save();
-      ctx.translate(20, 12);
-      // Windsock points AWAY from wind direction
-      ctx.rotate(currentWindDir);
-      
-      const sockLength = 20 + currentWindSpeed; // Length simulates droop: 10px if no wind, 40px at 30 knots
-      ctx.fillStyle = '#f97316';
-      ctx.beginPath();
-      ctx.moveTo(0, -6);
-      ctx.lineTo(sockLength, -4);
-      ctx.lineTo(sockLength, 4);
-      ctx.lineTo(0, 6);
-      ctx.fill();
-      
-      ctx.fillStyle = '#ffffff';
-      if (currentWindSpeed > 5) {
-        ctx.beginPath(); ctx.moveTo(sockLength * 0.3, -4); ctx.lineTo(sockLength * 0.4, -3); ctx.lineTo(sockLength * 0.4, 3); ctx.lineTo(sockLength * 0.3, 4); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(sockLength * 0.7, -3); ctx.lineTo(sockLength * 0.8, -2); ctx.lineTo(sockLength * 0.8, 2); ctx.lineTo(sockLength * 0.7, 3); ctx.fill();
-      }
-      ctx.restore();
-      
-      // Draw Helipad (Mission LZ)
-      ctx.save();
-      ctx.translate(150, 100);
-      ctx.shadowColor = 'transparent';
-      
-      ctx.beginPath();
-      ctx.arc(0, 0, 20, 0, Math.PI * 2);
-      ctx.fillStyle = '#ef4444'; // Red outer circle
-      ctx.fill();
-      
-      ctx.beginPath();
-      ctx.arc(0, 0, 15, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff'; // White inner circle
-      ctx.fill();
-      
-      ctx.beginPath();
-      ctx.arc(0, 0, 10, 0, Math.PI * 2);
-      ctx.fillStyle = '#ef4444'; // Red inner circle
-      ctx.fill();
-      
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 12px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('H', 0, 0);
-      ctx.restore();
-      
-      ctx.restore();
-
-      // Draw Mooring lines if docked
-      if (controlsRef.current.isDocked) {
-        ctx.save();
-        ctx.translate(dockX, dockY);
-        ctx.strokeStyle = '#d97706'; // amber-600 rope
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 2]);
-        
-        ctx.beginPath();
-        // Bow line
-        ctx.moveTo(-40, 60); ctx.lineTo(10, 20);
-        // Stern line
-        ctx.moveTo(-40, 140); ctx.lineTo(10, 180);
-        // Spring lines
-        ctx.moveTo(-40, 80); ctx.lineTo(10, 120);
-        ctx.moveTo(-40, 120); ctx.lineTo(10, 80);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // Draw the ship
-      ctx.save();
-      const shipScreenX = state.x - camX + canvas.width / 2;
-      const shipScreenY = state.y - camY + canvas.height / 2;
-      ctx.translate(shipScreenX, shipScreenY);
-      ctx.rotate(state.heading);
-      ctx.scale(visualScale, visualScale);
-      
-      // Ship shadow
-      ctx.shadowColor = 'rgba(0,0,0,0.6)';
-      ctx.shadowBlur = 15;
-      ctx.shadowOffsetX = 8;
-      ctx.shadowOffsetY = 8;
-      
-      const isMilitary = shipClass === 'corvette' || shipClass === 'frigate';
-      const isZodiac = shipClass === 'zodiac';
-      
-      if (isZodiac) {
-        // Zodiac (RHIB) rendering
-        ctx.fillStyle = '#1e293b'; // Black/dark slate pontoons
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(-8, -20, 16, 40, 8);
-        else ctx.fillRect(-8, -20, 16, 40);
-        ctx.fill();
-        
-        ctx.fillStyle = '#94a3b8'; // Grey rigid hull inside
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(-5, -15, 10, 32, 5);
-        else ctx.fillRect(-5, -15, 10, 32);
-        ctx.fill();
-
-        ctx.fillStyle = '#f8fafc'; // Center console
-        ctx.fillRect(-3, 0, 6, 6);
-        ctx.fillStyle = '#0f172a'; // Outboard motor
-        ctx.fillRect(-2, 20, 4, 4);
-
-      } else if (isMilitary) {
-        // Military Elongated Hull
-        const lengthMultiplier = shipClass === 'frigate' ? 2.0 : 1.5;
-        const bowY = -28 * lengthMultiplier;
-        const sternY = 26 * lengthMultiplier;
-        
-        ctx.fillStyle = '#475569'; // Dark navy grey
-        ctx.beginPath();
-        ctx.moveTo(0, bowY);
-        // Flatter, sharper curves for military
-        ctx.bezierCurveTo(10, bowY + 10, 12, 0, 10, sternY);
-        ctx.lineTo(-10, sternY);
-        ctx.bezierCurveTo(-12, 0, -10, bowY + 10, 0, bowY);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = '#334155';
-        ctx.stroke();
-
-        // Helipad on the aft deck
-        ctx.strokeStyle = '#94a3b8';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(0, sternY - 12, 8, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '8px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('H', 0, sternY - 12);
-        
-        if (shipClass === 'frigate') {
-          const heliY = sternY - 12;
-          
-          // Tail boom
-          ctx.fillStyle = '#1e293b';
-          ctx.fillRect(-0.5, heliY + 2, 1, 6);
-          
-          // Helicopter body
-          ctx.beginPath();
-          if (ctx.roundRect) ctx.roundRect(-2, heliY - 4, 4, 7, 1.5);
-          else ctx.fillRect(-2, heliY - 4, 4, 7);
-          ctx.fill();
-          
-          // Cockpit glass
-          ctx.fillStyle = '#38bdf8';
-          ctx.beginPath();
-          ctx.arc(0, heliY - 2.5, 1.5, Math.PI, 0);
-          ctx.fill();
-
-          // Spinning Main rotor
-          ctx.save();
-          ctx.translate(0, heliY - 0.5);
-          ctx.rotate((Date.now() % 1000) / 1000 * Math.PI * 2 * 10);
-          ctx.fillStyle = 'rgba(200, 200, 200, 0.5)';
-          ctx.fillRect(-6, -0.5, 12, 1);
-          ctx.fillRect(-0.5, -6, 1, 12);
-          ctx.beginPath();
-          ctx.arc(0, 0, 6, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-
-          // Spinning Tail rotor
-          ctx.save();
-          ctx.translate(0.5, heliY + 7.5);
-          ctx.rotate((Date.now() % 1000) / 1000 * Math.PI * 2 * 15);
-          ctx.fillStyle = 'rgba(200, 200, 200, 0.8)';
-          ctx.fillRect(-1.5, -0.25, 3, 0.5);
-          ctx.restore();
-        }
-
-        // Bridge / Superstructure
-        ctx.fillStyle = '#cbd5e1';
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(-6, -10, 12, 18 * lengthMultiplier, 2);
-        else ctx.fillRect(-6, -10, 12, 18 * lengthMultiplier);
-        ctx.fill();
-        
-        // VLS / Forward deck gun
-        ctx.fillStyle = '#334155';
-        ctx.beginPath();
-        ctx.arc(0, bowY + 15, 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillRect(-0.5, bowY + 8, 1, 7); // Barrel
-      } else {
-        // Standard Patrol Boat (curved boat shape)
-        ctx.fillStyle = '#94a3b8'; // slate-400
-        ctx.beginPath();
-        ctx.moveTo(0, -28);
-        ctx.bezierCurveTo(14, -15, 14, 15, 10, 26);
-        ctx.quadraticCurveTo(0, 28, -10, 26);
-        ctx.bezierCurveTo(-14, 15, -14, -15, 0, -28);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = '#475569';
-        ctx.stroke();
-        
-        // Deck details
-        ctx.fillStyle = '#f8fafc'; // Cabin
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(-8, -2, 16, 14, 4);
-        else ctx.fillRect(-8, -2, 16, 14);
-        ctx.fill();
-        
-        ctx.fillStyle = '#64748b'; // Aft deck
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(-8, 15, 16, 9, 2);
-        else ctx.fillRect(-8, 15, 16, 9);
-        ctx.fill();
-      }
-
-      // Draw deployed anchor
-      if (controlsRef.current.anchorDropped) {
-        ctx.save();
-        const bowY = isMilitary ? -28 * (shipClass === 'frigate' ? 2.0 : 1.5) : -28;
-        
-        ctx.strokeStyle = '#94a3b8'; // Chain color
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(0, bowY);
-        ctx.lineTo(-12, bowY - 15);
-        ctx.stroke();
-
-        ctx.translate(-12, bowY - 15);
-        ctx.rotate(-state.heading); // Anchor sits on seafloor
-        
-        ctx.fillStyle = '#cbd5e1'; 
-        ctx.beginPath();
-        ctx.arc(0, 0, 1.5, 0, Math.PI*2); 
-        ctx.fill();
-        ctx.fillRect(-0.5, 1.5, 1, 8); 
-        ctx.fillRect(-3, 3, 6, 1); 
-        ctx.beginPath();
-        ctx.arc(0, 7, 4, 0, Math.PI, false); 
-        ctx.lineWidth = 1.5;
-        ctx.strokeStyle = '#cbd5e1';
-        ctx.stroke();
-        
-        ctx.restore();
-      }
-
-      // Draw Maple Leaf on all ships (Canadian feel)
-      ctx.fillStyle = '#ef4444';
-      ctx.save();
-      if (isZodiac) {
-        ctx.translate(0, -10);
-        ctx.scale(0.5, 0.5);
-      } else if (isMilitary) {
-        const bowY = -28 * (shipClass === 'frigate' ? 2.0 : 1.5);
-        ctx.translate(0, bowY + 25);
-      } else {
-        ctx.translate(0, -15);
-      }
-      
-      ctx.beginPath();
-      ctx.moveTo(0, -4);
-      ctx.lineTo(1, -1); ctx.lineTo(4, -1); ctx.lineTo(1.5, 1);
-      ctx.lineTo(3, 4); ctx.lineTo(0, 2); ctx.lineTo(-3, 4);
-      ctx.lineTo(-1.5, 1); ctx.lineTo(-4, -1); ctx.lineTo(-1, -1);
-      ctx.closePath();
-      ctx.fill();
-      // Stem
-      ctx.fillRect(-0.5, 2, 1, 3);
-      ctx.restore();
-      
-      // Navigation lights (Port & Starboard)
-      if (navLightsOn) {
-        ctx.shadowBlur = 8;
-        // Port (Red)
-        ctx.fillStyle = '#ef4444';
-        ctx.shadowColor = '#ef4444';
-        ctx.beginPath(); ctx.arc(-9, -15, 3, 0, Math.PI * 2); ctx.fill();
-        // Starboard (Green)
-        ctx.fillStyle = '#22c55e';
-        ctx.shadowColor = '#22c55e';
-        ctx.beginPath(); ctx.arc(9, -15, 3, 0, Math.PI * 2); ctx.fill();
-      }
-      
-      // White Lights (Masthead and Stern)
-      if (whiteLightsOn) {
-        ctx.shadowBlur = 12;
-        ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = '#ffffff';
-        // Stern (White)
-        ctx.beginPath(); ctx.arc(0, 22, 2, 0, Math.PI * 2); ctx.fill();
-        // Masthead (White) - located centrally on the cabin roof
-        ctx.beginPath(); ctx.arc(0, 4, 3, 0, Math.PI * 2); ctx.fill();
-      }
-      
-      // Side Thruster Visuals
-      if (controlsRef.current.bowThruster !== 0 || controlsRef.current.sternThruster !== 0) {
-        if (shipClass === 'corvette' || shipClass === 'frigate') {
-           const lengthMultiplier = shipClass === 'frigate' ? 2.0 : 1.5;
-           const bowY = -28 * lengthMultiplier;
-           const sternY = 26 * lengthMultiplier;
-           
-           ctx.fillStyle = 'rgba(248, 250, 252, 0.8)'; // Foamy white water
-           ctx.shadowBlur = 4;
-           ctx.shadowColor = 'rgba(255,255,255,0.5)';
-           
-           if (controlsRef.current.bowThruster !== 0) {
-              // Positive = thrust STBD (push ship right), so water shoots PORT (left)
-              const bowT = controlsRef.current.bowThruster;
-              const intensity = Math.abs(bowT) / 100;
-              const dir = bowT > 0 ? -1 : 1; 
-              ctx.beginPath(); 
-              ctx.arc(dir * 12, bowY + 20, 2 + intensity * 4, 0, Math.PI * 2); 
-              ctx.fill();
-           }
-           if (controlsRef.current.sternThruster !== 0) {
-              const sternT = controlsRef.current.sternThruster;
-              const intensity = Math.abs(sternT) / 100;
-              const dir = sternT > 0 ? -1 : 1; 
-              ctx.beginPath(); 
-              ctx.arc(dir * 12, sternY - 20, 2 + intensity * 4, 0, Math.PI * 2); 
-              ctx.fill();
-           }
-        }
-      }
-
-      ctx.restore(); // restore ship transform
-      
-      // Draw Detached Helicopter
-      if (controlsRef.current.simMode === 'heli') {
-        ctx.save();
-        const hState = heliState.current;
-        const heliScreenX = hState.x - camX + canvas.width / 2;
-        const heliScreenY = hState.y - camY + canvas.height / 2;
-        
-        ctx.translate(heliScreenX, heliScreenY);
-        ctx.rotate(hState.heading);
-        
-        // Shadow (simulate altitude)
-        if (hState.altitude > 0) {
-           ctx.save();
-           ctx.translate(hState.altitude * 0.5, hState.altitude * 0.5);
-           ctx.fillStyle = 'rgba(0,0,0,0.3)';
-           ctx.beginPath();
-           if (ctx.roundRect) ctx.roundRect(-4, -8, 8, 14, 3);
-           else ctx.fillRect(-4, -8, 8, 14);
-           ctx.fill();
-           ctx.restore();
-        }
-        
-        // Draw Helicopter body
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(-1, 4, 2, 12); // tail boom
-        
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(-4, -8, 8, 14, 3);
-        else ctx.fillRect(-4, -8, 8, 14);
-        ctx.fill();
-        
-        // Cockpit glass
-        ctx.fillStyle = '#38bdf8';
-        ctx.beginPath();
-        ctx.arc(0, -5, 3, Math.PI, 0);
-        ctx.fill();
-        
-        // Spinning Main rotor
-        ctx.save();
-        ctx.translate(0, -1);
-        const rotorSpeed = hState.altitude > 0.1 || controlsRef.current.simMode === 'heli' ? 20 : 0;
-        ctx.rotate((Date.now() % 1000) / 1000 * Math.PI * 2 * rotorSpeed);
-        
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.beginPath();
-        ctx.arc(0, 0, 20, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.fillStyle = '#475569';
-        ctx.fillRect(-1.5, -20, 3, 40);
-        ctx.fillRect(-20, -1.5, 40, 3);
-        ctx.restore();
-        
-        ctx.restore();
-      }
-      
-      ctx.restore(); // restore global zoom scale
-
-      // Update UI HUD
+      // Write direct UI values to HUD
       if (speedTextRef.current) {
         speedTextRef.current.innerText = (Math.abs(state.speed) * 10).toFixed(1) + ' kts';
       }
       if (compassTextRef.current || compassCardRef.current) {
-        // Ship heading: 0 is North (Up), 90 is East (Right)
-        // Screen coords: North is -y, East is +x.
         let deg = Math.round(state.heading * (180 / Math.PI)) % 360;
         if (deg < 0) deg += 360;
         if (compassTextRef.current) compassTextRef.current.innerText = `${deg.toString().padStart(3, '0')}°`;
         if (compassCardRef.current) compassCardRef.current.style.transform = `rotate(${-deg}deg)`;
       }
 
-      const cyclicPuck = document.getElementById('cyclic-puck');
-      if (cyclicPuck && controlsRef.current.simMode === 'heli') {
-        const cx = (heliControlsRef.current.cyclicX / 100) * 72; 
-        const cy = (heliControlsRef.current.cyclicY / 100) * 72;
-        cyclicPuck.style.transform = `translate(${cx}px, ${cy}px)`;
-      }
-
       animationFrameId = requestAnimationFrame(render);
     };
 
     animationFrameId = requestAnimationFrame(render);
-
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
 
-  const settingsPanelJSX = (isPopped: boolean) => (
-    <div className="glass-panel p-5 rounded-xl w-80 max-h-[85vh] overflow-y-auto custom-scrollbar">
-      <h3 className="text-emerald-400 font-bold mb-4 border-b border-slate-800 pb-2 uppercase tracking-widest text-sm flex items-center justify-between sticky top-0 bg-slate-900/60 backdrop-blur-md z-10">
-        <span>Realism Settings</span>
-        <div className="flex items-center gap-1.5">
-          {isPopped ? (
-            <button
-              onClick={() => setIsSettingsPoppedOut(false)}
-              className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-[9px] uppercase font-mono tracking-wider transition-all"
-              title="Dock settings panel"
-            >
-              Dock
-            </button>
-          ) : (
-            <button
-              onClick={() => setIsSettingsPoppedOut(true)}
-              className="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[10px] uppercase font-bold tracking-wider transition-all shadow-[0_0_10px_rgba(37,99,235,0.4)]"
-              title="Pop out environmental controls"
-            >
-              Pop Out ↗
-            </button>
-          )}
-          {damageEnabled && shipDamage > 0 && <span className="text-red-500 text-[10px]">DMG: {Math.round(shipDamage)}%</span>}
-        </div>
-      </h3>
+  return (
+    <div className="relative w-full h-screen bg-slate-950 overflow-hidden select-none">
       
-      <div className="space-y-4">
-        {/* Wind Speed */}
-        <div>
-          <div className="flex justify-between text-xs text-slate-400 font-mono mb-1">
-            <span>WIND SPEED</span>
-            <span className="text-amber-400">{windSpeed} KTS</span>
-          </div>
-          <input type="range" min="0" max="30" value={windSpeed} onChange={(e) => setWindSpeed(parseInt(e.target.value))} className="w-full accent-amber-500" />
-        </div>
-
-        {/* Wind Direction */}
-        <div>
-          <div className="flex justify-between text-xs text-slate-400 font-mono mb-1">
-            <span>WIND DIR (FROM)</span>
-            <span className="text-amber-400">{windDir}°</span>
-          </div>
-          <input type="range" min="0" max="359" value={windDir} onChange={(e) => setWindDir(parseInt(e.target.value))} className="w-full accent-amber-500" />
-        </div>
-
-        <div className="h-px w-full bg-slate-800 my-2"></div>
-
-        {/* Current Speed */}
-        <div>
-          <div className="flex justify-between text-xs text-slate-400 font-mono mb-1">
-            <span>CURRENT (SET)</span>
-            <span className="text-blue-400">{currentSpeed} KTS</span>
-          </div>
-          <input type="range" min="0" max="5" step="0.5" value={currentSpeed} onChange={(e) => setCurrentSpeed(parseFloat(e.target.value))} className="w-full accent-blue-500" />
-        </div>
-
-        {/* Current Direction */}
-        <div>
-          <div className="flex justify-between text-xs text-slate-400 font-mono mb-1">
-            <span>CURRENT DIR (TOWARDS)</span>
-            <span className="text-blue-400">{currentDir}°</span>
-          </div>
-          <input type="range" min="0" max="359" value={currentDir} onChange={(e) => setCurrentDir(parseInt(e.target.value))} className="w-full accent-blue-500" />
-        </div>
-
-        <div className="h-px w-full bg-slate-800 my-2"></div>
-
-        {/* Jetty Select */}
-        <div>
-          <div className="text-xs text-slate-400 font-mono mb-1">JETTY GEOMETRY</div>
-          <select 
-            value={jettyType} 
-            onChange={(e) => setJettyType(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-slate-200 font-mono outline-none"
-          >
-            <option value="straight">Straight Wharf</option>
-            <option value="l-shape">L-Shaped Pier</option>
-            <option value="u-shape">U-Shaped Slip</option>
-            <option value="t-shape">T-Shaped Pier</option>
-          </select>
-        </div>
-
-        {/* Ship Class Select */}
-        <div className="pt-2">
-          <div className="text-xs text-slate-400 font-mono mb-1">VESSEL CLASS</div>
-          <select 
-            value={shipClass} 
-            onChange={(e) => setShipClass(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-sm text-slate-200 font-mono outline-none mb-2"
-          >
-            <option value="zodiac">Zodiac</option>
-            <option value="patrol" disabled={portMode === 'pasadena'}>Patrol Boat {portMode === 'pasadena' && '(LOCKED)'}</option>
-            <option value="corvette" disabled={portMode === 'pasadena'}>Corvette {portMode === 'pasadena' && '(LOCKED)'}</option>
-            <option value="frigate" disabled={portMode === 'pasadena'}>Frigate {portMode === 'pasadena' && '(LOCKED)'}</option>
-          </select>
-          
-          <div className="glass-panel-inner rounded-xl p-3 mt-2 text-xs font-mono">
-            {shipClass === 'zodiac' && (
-              <>
-                <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">5 meters</span></div>
-                <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">150 HP</span></div>
-                <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">40+ knots</span></div>
-                <div className="mt-2 text-slate-300">Fast, highly agile inflatable boat with single outboard motor. Instant response time.</div>
-              </>
-            )}
-            {shipClass === 'patrol' && (
-              <>
-                <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">24 meters</span></div>
-                <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">3,000 HP</span></div>
-                <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">35 knots</span></div>
-                <div className="mt-2 text-slate-300">Standard patrol craft with twin azimuth thrusters. Highly maneuverable, low inertia.</div>
-              </>
-            )}
-            {shipClass === 'corvette' && (
-              <>
-                <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">85 meters</span></div>
-                <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">20,000 HP</span></div>
-                <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">28 knots</span></div>
-                <div className="mt-2 text-slate-300">Medium military vessel. Moderate inertia. Equipped with Bow Thruster.</div>
-              </>
-            )}
-            {shipClass === 'frigate' && (
-              <>
-                <div className="flex justify-between mb-1"><span className="text-slate-400">LOA:</span> <span className="text-emerald-400">135 meters</span></div>
-                <div className="flex justify-between mb-1"><span className="text-slate-400">POWER:</span> <span className="text-amber-400">45,000 HP</span></div>
-                <div className="flex justify-between mb-1"><span className="text-slate-400">TOP SPEED:</span> <span className="text-blue-400">30 knots</span></div>
-                <div className="mt-2 text-slate-300">Large military vessel. High inertia. Equipped with Bow & Stern Thrusters, and Helipad.</div>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="h-px w-full bg-slate-800 my-2"></div>
-
-        {/* Buoy Toggles */}
-        <div>
-          <div className="text-xs text-slate-400 font-mono mb-2">BUOYS (DRAG ON CANVAS TO MOVE)</div>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-              <input type="checkbox" checked={showPortBuoy} onChange={e => setShowPortBuoy(e.target.checked)} className="accent-emerald-500 w-4 h-4" />
-              Port (Green)
-            </label>
-            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-              <input type="checkbox" checked={showStbdBuoy} onChange={e => setShowStbdBuoy(e.target.checked)} className="accent-red-500 w-4 h-4" />
-              Stbd (Red)
-            </label>
-          </div>
-        </div>
-
-        <div className="h-px w-full bg-slate-800 my-2"></div>
-
-        {/* Custom Buoy Laying */}
-        <div>
-          <div className="text-xs text-slate-400 font-mono mb-2">CUSTOM BUOY LAYING</div>
-          <div className="flex gap-2 mb-2">
+      {/* Action Header / Top Dashboard */}
+      <div className="absolute top-6 left-8 right-8 flex justify-between items-center z-10 pointer-events-none">
+        <div className="flex gap-4 items-center">
+          <div className="glass-panel px-4 py-2 flex items-center gap-2 pointer-events-auto">
+            <span className="text-[10px] font-mono text-slate-400">MAP:</span>
             <select
-              value={customBuoyColor}
-              onChange={(e) => setCustomBuoyColor(e.target.value as any)}
-              className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-xs text-slate-200 font-mono outline-none"
+              value={portMode}
+              onChange={(e) => setPortMode(e.target.value as any)}
+              className="bg-transparent text-emerald-400 font-mono text-xs border-none outline-none cursor-pointer"
             >
-              <option value="yellow">Special Mark (Yellow)</option>
-              <option value="green">Port Hand (Green)</option>
-              <option value="red">Starboard Hand (Red)</option>
+              <option value="home">Deer Lake (Home)</option>
+              <option value="random">Open Bay (Random)</option>
+              <option value="pasadena">Pasadena Coast</option>
             </select>
           </div>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => {
-                const state = shipState.current;
-                customBuoysRef.current.push({
-                  x: state.x,
-                  y: state.y,
-                  color: customBuoyColor
-                });
-                playBeep(523, 0.1);
-              }}
-              className="flex-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-mono text-xs rounded transition-all active:scale-95 shadow-lg shadow-amber-950/20"
-            >
-              LAY BUOY
-            </button>
-            <button 
-              onClick={() => {
-                customBuoysRef.current = [];
-                playBeep(330, 0.1);
-              }}
-              className="flex-1 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 font-mono text-xs rounded transition-all active:scale-95 border border-slate-600"
-            >
-              CLEAR ALL
-            </button>
-          </div>
-        </div>
-
-        <div className="h-px w-full bg-slate-800 my-2"></div>
-
-        {/* Training Courses */}
-        <div>
-          <div className="text-xs text-slate-400 font-mono mb-2">TRAINING COURSES</div>
-          <select 
-            value={activeCourse ? activeCourse.id : ''} 
-            onChange={(e) => {
-              const val = e.target.value;
-              const selected = PREMADE_COURSES.find(c => c.id === val);
-              startCourse(selected || null);
-            }}
-            className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-slate-200 font-mono outline-none mb-2"
-          >
-            <option value="">Free Sailing (No Course)</option>
-            {PREMADE_COURSES.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          {activeCourse && (
-            <div className="glass-panel-inner rounded-xl p-3 mt-2 text-xs font-mono space-y-1.5">
-              <div className="text-slate-300 font-bold">{activeCourse.name}</div>
-              <div className="text-slate-400 text-[10px] leading-normal">{activeCourse.description}</div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Progress:</span>
-                <span className="text-emerald-400 font-bold">
-                  {activeCourse.gates.filter(g => g.passed).length} / {activeCourse.gates.length} Gates
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Time Elapsed:</span>
-                <span className="text-amber-400 font-bold">
-                  {Math.floor(courseElapsedTime / 60)}m {Math.floor(courseElapsedTime % 60)}s
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="h-px w-full bg-slate-800 my-2"></div>
-
-        {/* Port and Damage Settings */}
-        <div>
-          <div className="text-xs text-slate-400 font-mono mb-2">SCENARIO OPTIONS</div>
           
-          <div className="flex gap-1 mb-3 bg-slate-950 p-1 rounded border border-slate-700">
-            <button 
-              onClick={() => setPortMode('home')}
-              className={`flex-1 px-1 py-1 text-[10px] font-bold font-mono rounded ${portMode === 'home' ? 'bg-amber-600 text-white shadow-[0_0_8px_rgba(217,119,6,0.3)]' : 'text-slate-400 hover:text-white'}`}
-            >
-              HOME PORT
-            </button>
-            <button 
-              onClick={() => setPortMode('random')}
-              className={`flex-1 px-1 py-1 text-[10px] font-bold font-mono rounded ${portMode === 'random' ? 'bg-amber-600 text-white shadow-[0_0_8px_rgba(217,119,6,0.3)]' : 'text-slate-400 hover:text-white'}`}
-            >
-              RANDOM
-            </button>
-            <button 
-              onClick={() => setPortMode('pasadena')}
-              className={`flex-1 px-1 py-1 text-[10px] font-bold font-mono rounded ${portMode === 'pasadena' ? 'bg-amber-600 text-white shadow-[0_0_8px_rgba(217,119,6,0.3)]' : 'text-slate-400 hover:text-white'}`}
-            >
-              PASADENA
-            </button>
+          <div className="glass-panel px-4 py-2 flex items-center gap-2 pointer-events-auto">
+            <span className="text-[10px] font-mono text-slate-400">ZOOM:</span>
+            <button onClick={() => { zoomRef.current = Math.min(2.5, zoomRef.current + 0.15); }} className="text-slate-300 hover:text-white px-1 font-bold font-mono text-sm">+</button>
+            <span className="text-xs font-mono text-emerald-400 min-w-[32px] text-center">{Math.round(zoomRef.current * 100)}%</span>
+            <button onClick={() => { zoomRef.current = Math.max(0.4, zoomRef.current - 0.15); }} className="text-slate-300 hover:text-white px-1 font-bold font-mono text-sm">-</button>
           </div>
-
-          <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer mb-2">
-            <input type="checkbox" checked={damageEnabled} onChange={e => setDamageEnabled(e.target.checked)} className="accent-red-500 w-4 h-4" />
-            Enable Collision Damage
-          </label>
-          {damageEnabled && shipDamage > 0 && (
-            <button 
-              onClick={() => setShipDamage(0)}
-              className="text-xs text-red-400 hover:text-red-300 underline"
-            >
-              Repair Ship
-            </button>
-          )}
         </div>
 
+        <div className="flex gap-4 pointer-events-auto items-center">
+          {PREMADE_COURSES.map(course => (
+            <button
+              key={course.id}
+              onClick={() => {
+                if (activeCourse && activeCourse.id === course.id) {
+                  startCourse(null);
+                } else {
+                  startCourse(course);
+                }
+              }}
+              className={`px-4 py-2 font-mono text-xs font-bold rounded-lg border transition-all ${
+                activeCourse && activeCourse.id === course.id
+                  ? 'bg-emerald-600 border-emerald-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                  : 'glass-panel border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white'
+              }`}
+            >
+              🏁 {course.name}
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
-  );
 
-  return (
-    <div className="flex-1 relative bg-slate-900 overflow-hidden w-full h-full">
-      <div 
-        className="absolute inset-0 cursor-crosshair"
+      {/* Main Simulation Canvas */}
+      <canvas
+        ref={canvasRef}
+        width={1100}
+        height={650}
         onMouseDown={handleCanvasMouseDown}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
         onMouseLeave={handleCanvasMouseUp}
-        onWheel={(e) => {
-          // Adjust zoom
-          const newZoom = zoomRef.current * (1 - Math.sign(e.deltaY) * 0.1);
-          zoomRef.current = Math.max(0.2, Math.min(5, newZoom));
-        }}
-      >
-        <canvas 
-          ref={canvasRef}
-          className="w-full h-full"
-          width={window.innerWidth}
-          height={window.innerHeight}
-        />
-      </div>
-      
-      {/* CRT Overlay for aesthetic */}
-      <div className="absolute inset-0 screen-crt opacity-30 mix-blend-overlay pointer-events-none"></div>
+        className="w-full h-full object-cover pointer-events-auto block"
+      />
 
-      {/* Environment Settings Panel (Collapsible) */}
-      {!isSettingsPoppedOut && (
-        <div className={`absolute top-6 right-0 transition-transform duration-300 z-20 flex ${envExpanded ? 'translate-x-0 pr-6' : 'translate-x-full'}`}>
-          {/* Sidebar Trigger */}
-          <button 
-            onClick={() => setEnvExpanded(!envExpanded)}
-            className="absolute -left-8 top-4 glass-panel w-8 h-12 flex items-center justify-center rounded-l-xl text-slate-400 hover:text-white"
-            title={envExpanded ? 'Collapse Settings' : 'Expand Settings'}
-          >
-            {envExpanded ? '▶' : '◀'}
-          </button>
-          
-          {/* Quick Pop Out Tab */}
-          <button 
-            onClick={() => setIsSettingsPoppedOut(true)}
-            className="absolute -left-8 top-20 bg-blue-600 hover:bg-blue-500 w-8 h-12 flex items-center justify-center rounded-l-xl text-white shadow-[0_0_12px_rgba(37,99,235,0.5)] border-l border-y border-blue-400 font-bold"
-            title="Pop Out Settings Window"
-          >
-            ↗
-          </button>
-          {settingsPanelJSX(false)}
-        </div>
-      )}
-
-      {isSettingsPoppedOut && (
+      {/* Realism & Environmental Settings Panel */}
+      {isSettingsPoppedOut ? (
         <ControlPortal 
           onClose={() => setIsSettingsPoppedOut(false)}
           windowName="ShipSettings"
@@ -3128,392 +901,58 @@ export default function ShipSim() {
           height={750}
           scrollbars="yes"
         >
-          {settingsPanelJSX(true)}
+          <RealismSettings 
+            isPopped={true} 
+            setIsSettingsPoppedOut={setIsSettingsPoppedOut} 
+            customBuoysRef={customBuoysRef}
+            playBeep={playBeep}
+            shipState={shipState}
+          />
         </ControlPortal>
+      ) : (
+        <div className="absolute top-24 left-8 z-20">
+          <RealismSettings 
+            isPopped={false} 
+            setIsSettingsPoppedOut={setIsSettingsPoppedOut} 
+            customBuoysRef={customBuoysRef}
+            playBeep={playBeep}
+            shipState={shipState}
+          />
+        </div>
       )}
 
-      {/* Modern Ship Control Panel */}
-      {(() => {
-        const controlPanel = (
-          <div 
-            onMouseDown={isControlsPoppedOut ? undefined : handleMouseDown}
-            style={{ 
-              transform: isControlsPoppedOut ? `scale(${panelScale})` : `translate(calc(-50% + ${panelPos.x}px), ${panelPos.y}px) scale(${panelScale})`,
-              transformOrigin: isControlsPoppedOut ? 'center center' : 'bottom center',
-              display: simMode === 'ship' ? 'flex' : 'none',
-              position: isControlsPoppedOut ? 'relative' : 'absolute',
-              left: isControlsPoppedOut ? 'auto' : '50%',
-              bottom: isControlsPoppedOut ? 'auto' : '2rem'
-            }}
-            className={`glass-panel p-6 flex flex-col gap-6 rounded-2xl ${isControlsPoppedOut ? '' : (isDragging ? 'cursor-grabbing' : 'cursor-grab')} z-20`}
-          >
-            {/* Panel Scale Buttons */}
-            <div className="absolute top-2 left-10 text-[8px] text-slate-500 font-mono flex items-center gap-1.5 z-30" onMouseDown={e => e.stopPropagation()}>
-              SCALE:
-              {[{label: 'XS', val: 0.5}, {label: 'S', val: 0.75}, {label: 'M', val: 1.0}, {label: 'L', val: 1.25}, {label: 'XL', val: 1.5}].map(sz => (
-                <button
-                  key={sz.label}
-                  onClick={() => setPanelScale(sz.val)}
-                  className={`px-1.5 py-0.5 rounded ${panelScale === sz.val ? 'bg-amber-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-                >
-                  {sz.label}
-                </button>
-              ))}
-              <span className="text-slate-600 mx-1">|</span>
-              {!isControlsPoppedOut ? (
-                <button
-                  onClick={() => setIsControlsPoppedOut(true)}
-                  className="px-2 py-0.5 bg-blue-600 text-white hover:bg-blue-500 rounded font-bold uppercase tracking-wider text-[8px]"
-                >
-                  Pop Out Console
-                </button>
-              ) : (
-                <button
-                  onClick={() => setIsControlsPoppedOut(false)}
-                  className="px-2 py-0.5 bg-rose-600 text-white hover:bg-rose-500 rounded font-bold uppercase tracking-wider text-[8px]"
-                >
-                  Dock Console
-                </button>
-              )}
-            </div>
-
-        {/* Panel details: Screws */}
-        <div className="absolute top-3 left-3 w-2.5 h-2.5 rounded-full bg-slate-600 shadow-[inset_0_1px_2px_rgba(0,0,0,0.8),0_1px_0_rgba(255,255,255,0.2)] flex items-center justify-center"><div className="w-full h-0.5 bg-slate-800 rotate-45"></div></div>
-        <div className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-slate-600 shadow-[inset_0_1px_2px_rgba(0,0,0,0.8),0_1px_0_rgba(255,255,255,0.2)] flex items-center justify-center"><div className="w-full h-0.5 bg-slate-800 -rotate-12"></div></div>
-        <div className="absolute bottom-3 left-3 w-2.5 h-2.5 rounded-full bg-slate-600 shadow-[inset_0_1px_2px_rgba(0,0,0,0.8),0_1px_0_rgba(255,255,255,0.2)] flex items-center justify-center"><div className="w-full h-0.5 bg-slate-800 rotate-90"></div></div>
-        <div className="absolute bottom-3 right-3 w-2.5 h-2.5 rounded-full bg-slate-600 shadow-[inset_0_1px_2px_rgba(0,0,0,0.8),0_1px_0_rgba(255,255,255,0.2)] flex items-center justify-center"><div className="w-full h-0.5 bg-slate-800 rotate-0"></div></div>
-
-        {/* Top Label Plate */}
-        <div className="flex justify-between items-start border-b border-slate-700 pb-3 px-2">
-          <div>
-            <h3 className="text-xs font-bold text-slate-300 tracking-widest font-mono">H2OMAN CONTROLS</h3>
-            <p className="text-[9px] text-slate-500 font-mono tracking-widest mt-0.5">AZIMUTH THRUSTER UNIT LT(N)-H2O</p>
-          </div>
-          
-          {/* HUD Indicators (Moved to Compass section) */}
-          <div className="flex gap-4 items-center flex-1 justify-end mr-4">
-            <button 
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => setAnchorDropped(!anchorDropped)}
-              className={`px-6 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest rounded-lg border-b-[3px] active:translate-y-[2px] active:border-b-[1px] transition-all flex-1 max-w-[180px] ${
-                anchorDropped 
-                  ? 'bg-gradient-to-b from-amber-700 to-amber-900 text-amber-200 border-amber-950 shadow-[0_4px_8px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)]' 
-                  : 'bg-gradient-to-b from-slate-600 to-slate-800 text-slate-200 border-slate-950 hover:from-slate-500 hover:to-slate-700 shadow-[0_4px_8px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)]'
-              }`}
-            >
-              {anchorDropped ? 'WEIGH ANCHOR' : 'DROP ANCHOR'}
-            </button>
-            <button 
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => {
-                setIsPaused(!isPaused);
-                isPausedRef.current = !isPaused;
-              }}
-              className={`px-6 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest rounded-lg border-b-[3px] active:translate-y-[2px] active:border-b-[1px] transition-all flex-1 max-w-[180px] mr-4 ${
-                isPaused 
-                  ? 'bg-gradient-to-b from-red-700 to-red-900 text-red-200 border-red-950 animate-pulse shadow-[0_4px_8px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)]' 
-                  : 'bg-gradient-to-b from-slate-600 to-slate-800 text-slate-200 border-slate-950 hover:from-slate-500 hover:to-slate-700 shadow-[0_4px_8px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)]'
-              }`}
-            >
-              {isPaused ? 'RESUME' : 'PAUSE'}
-            </button>
-            <button 
-              onMouseDown={(e) => e.stopPropagation()}
-              onPointerDown={(e) => { e.stopPropagation(); startHorn(); }}
-              onPointerUp={(e) => { e.stopPropagation(); stopHorn(); }}
-              onPointerLeave={(e) => { e.stopPropagation(); stopHorn(); }}
-              className="px-6 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest rounded-lg border-b-[3px] active:translate-y-[2px] active:border-b-[1px] transition-all flex-1 max-w-[180px] mr-4 bg-gradient-to-b from-red-600 to-red-800 text-red-100 border-red-950 hover:from-red-500 hover:to-red-700 active:from-red-700 active:to-red-900 shadow-[0_4px_8px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.4)] select-none touch-none"
-            >
-              📣 HORN [H]
-            </button>
-            <div className="flex gap-3 glass-panel-inner p-2 rounded-lg items-center" onMouseDown={e => e.stopPropagation()}>
-              <button 
-                onClick={() => setMusicPlaying(!musicPlaying)}
-                className={`px-2 py-1 rounded text-[9px] font-mono font-bold uppercase transition-all ${musicPlaying ? 'bg-emerald-600 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}
-              >
-                🎵 MUSIC: {musicPlaying ? 'ON' : 'OFF'}
-              </button>
-              <button 
-                onClick={() => setEngineSoundOn(!engineSoundOn)}
-                className={`px-2 py-1 rounded text-[9px] font-mono font-bold uppercase transition-all ${engineSoundOn ? 'bg-emerald-600 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}
-              >
-                🔊 ENG: {engineSoundOn ? 'ON' : 'OFF'}
-              </button>
-              <div className="h-4 w-px bg-slate-700 mx-1"></div>
-              <div className="flex flex-col items-center gap-1">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8),inset_0_1px_2px_rgba(255,255,255,0.5)]"></div>
-                <span className="text-[8px] text-slate-400 font-mono">SYS OK</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8),inset_0_1px_2px_rgba(255,255,255,0.5)]"></div>
-                <span className="text-[8px] text-slate-400 font-mono">MANUAL</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Controls Section */}
-        <div className="flex gap-12 items-end px-4">
-          
-          {/* Side Thrusters (Corvette/Frigate only) */}
-          {(shipClass === 'corvette' || shipClass === 'frigate') && (
-            <div className="flex flex-col gap-4 border-r border-slate-700 pr-8 mr-[-16px]">
-              <HorizontalThrusterLever label="BOW THRUSTER" value={bowThruster} onChange={setBowThruster} />
-              <HorizontalThrusterLever label="STERN THRUSTER" value={sternThruster} onChange={setSternThruster} />
-            </div>
-          )}
-
-          {/* Lighting Toggles */}
-          <div className="flex flex-col gap-6 justify-end border-r border-slate-700 pr-8 mr-[-16px]">
-            <div className="text-center">
-              <button 
-                onClick={() => setNavLightsOn(!navLightsOn)}
-                className={`w-12 h-12 rounded-full border-[3px] shadow-inner flex items-center justify-center transition-all ${navLightsOn ? 'bg-emerald-500/20 border-emerald-500 shadow-[inset_0_0_10px_rgba(16,185,129,0.5),0_0_15px_rgba(16,185,129,0.4)]' : 'bg-slate-900 border-slate-700'}`}
-              >
-                <div className={`w-3 h-3 rounded-full ${navLightsOn ? 'bg-emerald-400' : 'bg-slate-700'}`}></div>
-              </button>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-3 block">NAV LTS</span>
-            </div>
-            
-            <div className="text-center">
-              <button 
-                onClick={() => setWhiteLightsOn(!whiteLightsOn)}
-                className={`w-12 h-12 rounded-full border-[3px] shadow-inner flex items-center justify-center transition-all ${whiteLightsOn ? 'bg-slate-200/20 border-slate-300 shadow-[inset_0_0_10px_rgba(255,255,255,0.5),0_0_15px_rgba(255,255,255,0.4)]' : 'bg-slate-900 border-slate-700'}`}
-              >
-                <div className={`w-3 h-3 rounded-full ${whiteLightsOn ? 'bg-white' : 'bg-slate-700'}`}></div>
-              </button>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-3 block">MAST LTS</span>
-            </div>
-          </div>
-
-          {/* Vertical Throttle Lever */}
-          <div className="flex flex-col items-center gap-4">
-            <div className="glass-panel-inner p-2 w-24 text-center rounded-lg">
-              <span className="text-xs text-slate-500 block mb-1 font-mono">THRUST</span>
-              <span className={`text-xl font-mono ${throttle === 0 ? 'text-slate-500' : throttle > 0 ? 'text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]' : 'text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]'}`}>
-                {throttle > 0 ? `+${throttle}` : throttle < 0 ? throttle : '00'}%
-              </span>
-            </div>
-            
-            {/* Realistic Throttle Base */}
-            <div 
-              ref={leverTrackRef}
-              onPointerDown={handleLeverPointerDown}
-              onPointerMove={handleLeverPointerMove}
-              onPointerUp={handleLeverPointerUp}
-              className="lever-container relative w-24 h-56 bg-gradient-to-r from-slate-400 via-slate-100 to-slate-400 rounded-xl shadow-[0_10px_20px_rgba(0,0,0,0.8),inset_0_-5px_10px_rgba(0,0,0,0.5),inset_0_5px_10px_rgba(255,255,255,0.8)] border border-slate-300 flex items-center justify-center cursor-pointer select-none touch-none overflow-hidden"
-            >
-              {/* Inner Slot */}
-              <div className="absolute w-6 h-48 bg-slate-950 rounded-full shadow-[inset_0_5px_15px_rgba(0,0,0,1)] flex justify-center">
-                <div className="w-0.5 h-full bg-white/10"></div>
-              </div>
-              
-              {/* Scale Markings */}
-              <div className="absolute inset-y-4 left-1 flex flex-col justify-between py-1 font-mono text-[9px] font-bold text-slate-800 pointer-events-none">
-                <span>100</span><span>50</span><span>0</span><span>-50</span><span>-100</span>
-              </div>
-              <div className="absolute inset-y-4 right-1 flex flex-col justify-between py-1 font-mono text-[9px] font-bold text-slate-800 pointer-events-none text-right tracking-tighter">
-                <span>AHD</span><span></span><span></span><span></span><span>AST</span>
-              </div>
-
-              {/* The Lever Arm and Handle */}
-              <div 
-                className="absolute left-1/2 w-16 h-16 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-10"
-                style={{ top: `${50 - (throttle / 2)}%`, transition: isDraggingLever ? 'none' : 'top 0.1s ease-out' }}
-              >
-                {/* Arm Base / Joint */}
-                <div className="w-8 h-4 bg-gradient-to-r from-slate-500 to-slate-300 rounded-t-lg -mb-1 shadow-[inset_0_2px_2px_rgba(255,255,255,0.5)]"></div>
-                {/* Arm Shaft */}
-                <div className="w-4 h-6 bg-gradient-to-r from-slate-400 via-slate-200 to-slate-400 shadow-[inset_0_0_5px_rgba(0,0,0,0.5)] z-0"></div>
-                {/* Grip */}
-                <div className="w-20 h-10 bg-gradient-to-b from-slate-800 to-black rounded-lg shadow-[0_10px_15px_rgba(0,0,0,0.8),inset_0_2px_5px_rgba(255,255,255,0.3)] border border-slate-600 -mt-2 z-10 flex items-center justify-center relative">
-                   <div className="absolute top-1 left-2 right-2 h-2 bg-gradient-to-b from-white/20 to-transparent rounded-full pointer-events-none"></div>
-                   {/* Grip accents */}
-                   <div className="w-1.5 h-5 bg-blue-500 rounded-full shadow-[0_0_5px_rgba(59,130,246,0.8),inset_0_1px_3px_rgba(0,0,0,0.8)] opacity-90 mx-1"></div>
-                   <div className="w-1.5 h-5 bg-blue-500 rounded-full shadow-[0_0_5px_rgba(59,130,246,0.8),inset_0_1px_3px_rgba(0,0,0,0.8)] opacity-90 mx-1"></div>
-                </div>
-              </div>
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Lever <span className="text-slate-500 font-normal">[W/X]</span></span>
-          </div>
-
-          {/* Traditional Compass */}
-          <div className="flex flex-col items-center px-2 pt-0 justify-end">
-             {/* Speed & Heading Readouts */}
-             <div className="flex gap-4 mb-10 mt-[-10px]">
-               <div className="flex flex-col items-center">
-                 <span className="text-[10px] text-slate-500 font-mono mb-1 font-bold tracking-widest">SPEED</span>
-                 <div className="glass-panel-inner px-4 py-2 min-w-[85px] text-center rounded-lg">
-                   <span ref={speedTextRef} className="text-xl text-emerald-400 font-mono drop-shadow-[0_0_5px_rgba(52,211,153,0.5)] tracking-wider">0.0 kts</span>
-                 </div>
-               </div>
-               <div className="flex flex-col items-center">
-                 <span className="text-[10px] text-slate-500 font-mono mb-1 font-bold tracking-widest">HEADING</span>
-                 <div className="glass-panel-inner px-4 py-2 min-w-[85px] text-center rounded-lg">
-                   <span ref={compassTextRef} className="text-xl text-amber-400 font-mono drop-shadow-[0_0_5px_rgba(251,191,36,0.5)] tracking-wider">000°</span>
-                 </div>
-               </div>
-             </div>
-
-             <div className="relative w-32 h-32 bg-slate-900 rounded-full border-4 border-slate-950 shadow-[0_5px_15px_rgba(0,0,0,0.5),inset_0_5px_15px_rgba(0,0,0,1)] flex items-center justify-center overflow-hidden">
-               {/* Fixed Lubber Line */}
-               <div className="absolute top-0 w-1 h-3 bg-red-500 z-20 shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>
-               <div className="absolute top-3 w-0 h-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent border-t-red-500 z-20"></div>
-               
-               {/* Rotating Compass Card */}
-               <div ref={compassCardRef} className="absolute inset-0 rounded-full flex items-center justify-center z-10 transition-transform duration-75">
-                  <div className="absolute inset-0 rounded-full border-4 border-slate-700"></div>
-                  <span className="absolute top-2 text-[10px] font-bold text-slate-300">N</span>
-                  <span className="absolute right-2 text-[10px] font-bold text-slate-300">E</span>
-                  <span className="absolute bottom-2 text-[10px] font-bold text-slate-300">S</span>
-                  <span className="absolute left-2 text-[10px] font-bold text-slate-300">W</span>
-                  <div className="absolute w-full h-px bg-slate-700"></div>
-                  <div className="absolute h-full w-px bg-slate-700"></div>
-                  {/* Tick marks */}
-                  {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg) => (
-                    <div key={deg} className="absolute w-full h-full flex items-start justify-center" style={{ transform: `rotate(${deg}deg)` }}>
-                      <div className="w-0.5 h-1.5 bg-slate-500 mt-1"></div>
-                    </div>
-                  ))}
-               </div>
-             </div>
-             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-6">GYROCOMPASS</span>
-          </div>
-          
-          {/* Divider */}
-          <div className="h-48 w-0.5 bg-gradient-to-b from-transparent via-slate-700 to-transparent"></div>
-          
-          {/* Steering UI */}
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex gap-2 mb-2 bg-slate-900 p-1 rounded-lg border border-slate-700">
-              <button 
-                onClick={() => setSteeringMode('azimuth')}
-                className={`px-3 py-1 text-[9px] font-bold tracking-widest rounded ${steeringMode === 'azimuth' ? 'bg-amber-500 text-slate-900 shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                AZIMUTH
-              </button>
-              <button 
-                onClick={() => setSteeringMode('wheel')}
-                className={`px-3 py-1 text-[9px] font-bold tracking-widest rounded ${steeringMode === 'wheel' ? 'bg-amber-500 text-slate-900 shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                WHEEL
-              </button>
-            </div>
-
-            <div className="glass-panel-inner p-2 w-32 text-center rounded-lg">
-              <span className="text-xs text-slate-500 block mb-1 font-mono">HEADING CMD</span>
-              <span className={`text-xl font-mono ${rudder > 0 ? 'text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]' : rudder < 0 ? 'text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]' : 'text-slate-500'}`}>
-                {rudder > 0 ? "STBD " + rudder.toString().padStart(2, '0') : rudder < 0 ? "PORT " + Math.abs(rudder).toString().padStart(2, '0') : '00°'}
-              </span>
-            </div>
-            
-            {steeringMode === 'azimuth' ? (
-              <div 
-                ref={wheelRef}
-                className="steering-wheel-container relative w-36 h-36 mt-2 mb-2 rounded-full cursor-pointer touch-none flex items-center justify-center bg-slate-900 border-[4px] border-slate-800 shadow-[inset_0_10px_20px_rgba(0,0,0,0.8)]"
-                onPointerDown={(e) => { setIsTurningWheel(true); updateWheelAngle(e.clientX, e.clientY); }}
-              >
-                {/* Scale markings on the base */}
-                <div className="absolute inset-1 rounded-full border-4 border-transparent pointer-events-none" style={{
-                  borderTopColor: '#ef4444', borderLeftColor: '#ef4444', // Red for port
-                  borderRightColor: '#10b981', borderBottomColor: '#10b981', // Green for stbd
-                  transform: 'rotate(-45deg)' 
-                }}></div>
-                {/* Hide the bottom half of the scale since rudder only goes to 45 */}
-                <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-slate-900 z-0 rounded-b-full"></div>
-                {/* Base center circle */}
-                <div className="absolute inset-5 rounded-full bg-slate-950 shadow-[inset_0_5px_15px_rgba(0,0,0,1)] z-0">
-                  {/* Tick marks around the dial */}
-                  <div className="absolute top-1 left-1/2 -translate-x-1/2 w-0.5 h-2 bg-amber-500"></div>
-                  <div className="absolute top-2.5 left-4 w-2 h-0.5 bg-red-500 rotate-45"></div>
-                  <div className="absolute top-2.5 right-4 w-2 h-0.5 bg-emerald-500 -rotate-45"></div>
-                </div>
-
-                {/* Rotating Azimuth Puck */}
-                <div 
-                  className="absolute inset-0 transition-transform duration-75 z-10"
-                  style={{ transform: `rotate(${rudder}deg)` }}
-                >
-                  {/* Protruding Handle (Lever pointing down towards user) */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 w-5 h-16 bg-gradient-to-r from-slate-700 via-slate-500 to-slate-800 rounded-b-lg origin-top z-0" style={{ transform: 'rotate(180deg)' }}>
-                    <div className="w-full h-8 bg-gradient-to-b from-slate-800 to-black rounded-b-lg absolute bottom-0 shadow-[0_5px_10px_rgba(0,0,0,0.8)] border-x border-b border-slate-600"></div>
-                  </div>
-                  
-                  {/* The Black Knob */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-gradient-to-b from-slate-700 to-slate-900 rounded-full border-[3px] border-slate-800 shadow-[0_10px_20px_rgba(0,0,0,0.8),inset_0_2px_5px_rgba(255,255,255,0.2)] flex items-center justify-center z-10">
-                    <div className="w-16 h-16 bg-slate-950 rounded-full shadow-inner flex items-center justify-center">
-                      {/* Compass Star Logo */}
-                      <div className="relative w-10 h-10">
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-1.5 h-10 bg-gradient-to-r from-slate-300 to-slate-500 relative">
-                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[3px] border-r-[3px] border-b-[4px] border-l-transparent border-r-transparent border-b-white"></div>
-                          </div>
-                          <div className="absolute w-10 h-1.5 bg-gradient-to-b from-slate-300 to-slate-500"></div>
-                        </div>
-                        <div className="absolute inset-0 flex items-center justify-center rotate-45">
-                          <div className="w-1 h-7 bg-slate-600"></div>
-                          <div className="absolute w-7 h-1 bg-slate-600"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div 
-                ref={wheelRef}
-                className="steering-wheel-container relative w-36 h-36 mt-2 mb-2 rounded-full cursor-pointer touch-none"
-                onPointerDown={(e) => { setIsTurningWheel(true); updateWheelAngle(e.clientX, e.clientY); }}
-              >
-                {/* Background housing */}
-                <div className="absolute inset-0 bg-slate-900 rounded-full border-[4px] border-slate-800 shadow-[inset_0_10px_20px_rgba(0,0,0,0.8)]"></div>
-                
-                {/* Wheel element rotated by rudder state */}
-                <div 
-                  className="absolute inset-0 transition-transform duration-75"
-                  style={{ transform: `rotate(${rudder}deg)` }}
-                >
-                  {/* Wheel outer rim */}
-                  <div className="absolute inset-4 rounded-full border-8 border-amber-900 shadow-xl"></div>
-                  {/* Wheel inner hub */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-amber-800 rounded-full border-2 border-amber-600 shadow-md z-10">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-amber-900 rounded-full"></div>
-                  </div>
-                  
-                  {/* Spokes */}
-                  {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => (
-                    <div 
-                      key={angle}
-                      className="absolute top-1/2 left-1/2 w-1.5 h-[80px] bg-amber-800 border-x border-amber-900 origin-bottom"
-                      style={{ 
-                        transform: `translateX(-50%) translateY(-100%) rotate(${angle}deg)`,
-                        transformOrigin: 'bottom center'
-                      }}
-                    >
-                      {/* Handle grips sticking out past rim */}
-                      <div className={`absolute top-[-15px] left-1/2 -translate-x-1/2 w-3 h-4 rounded-t-full ${i === 0 ? 'bg-slate-300' : 'bg-amber-700'}`}></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Steering <span className="text-slate-500 font-normal">[←/→]</span></span>
-          </div>
-        </div>
-        </div>
-      );
-
-      if (isControlsPoppedOut) {
-        return (
-          <ControlPortal onClose={() => setIsControlsPoppedOut(false)}>
-            {controlPanel}
-          </ControlPortal>
-        );
-      }
-
-      return controlPanel;
-    })()}
+      {/* Modern Vessel Controls Console Panel */}
+      {isControlsPoppedOut ? (
+        <ControlPortal onClose={() => setIsControlsPoppedOut(false)}>
+          <HelmControls
+            isControlsPoppedOut={true}
+            setIsControlsPoppedOut={setIsControlsPoppedOut}
+            isPaused={isPaused}
+            setIsPaused={setIsPaused}
+            isPausedRef={isPausedRef}
+            startHorn={startHorn}
+            stopHorn={stopHorn}
+            heliState={heliState}
+            speedTextRef={speedTextRef}
+            compassTextRef={compassTextRef}
+            compassCardRef={compassCardRef}
+          />
+        </ControlPortal>
+      ) : (
+        <HelmControls
+          isControlsPoppedOut={false}
+          setIsControlsPoppedOut={setIsControlsPoppedOut}
+          isPaused={isPaused}
+          setIsPaused={setIsPaused}
+          isPausedRef={isPausedRef}
+          startHorn={startHorn}
+          stopHorn={stopHorn}
+          heliState={heliState}
+          speedTextRef={speedTextRef}
+          compassTextRef={compassTextRef}
+          compassCardRef={compassCardRef}
+        />
+      )}
 
       {/* Docking Button Overlays */}
       {isDocked && (
@@ -3522,7 +961,7 @@ export default function ShipSim() {
             setIsDocked(false);
             setThrottle(0);
           }}
-          className="absolute z-10 bottom-12 left-1/2 -translate-x-1/2 px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-full shadow-[0_0_30px_rgba(234,88,12,0.8)] border-4 border-orange-400 tracking-widest text-lg transition-transform hover:scale-105"
+          className="absolute z-10 bottom-12 left-1/2 -translate-x-1/2 px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-full shadow-[0_0_30px_rgba(234,88,12,0.8)] border-4 border-orange-400 tracking-widest text-lg transition-transform hover:scale-105 pointer-events-auto"
         >
           SLIP THE JETTY
         </button>
@@ -3535,14 +974,13 @@ export default function ShipSim() {
             setThrottle(0);
             setRudder(0);
           }}
-          className="absolute z-10 bottom-12 left-1/2 -translate-x-1/2 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-full shadow-[0_0_30px_rgba(16,185,129,0.8)] border-4 border-emerald-400 tracking-widest text-lg transition-transform hover:scale-105 animate-bounce"
+          className="absolute z-10 bottom-12 left-1/2 -translate-x-1/2 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-full shadow-[0_0_30px_rgba(16,185,129,0.8)] border-4 border-emerald-400 tracking-widest text-lg transition-transform hover:scale-105 animate-bounce pointer-events-auto"
         >
           TIE UP SECURELY
         </button>
       )}
 
-      {/* Physics Panels & Environment Overlays */}
-
+      {/* Easter Egg Helicopter Objective Details */}
       {simMode === 'heli' && (
         <div className="absolute top-24 right-8 bg-slate-900/90 p-4 rounded-lg border-2 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)] z-20 w-72 pointer-events-none">
            <h3 className="text-emerald-400 font-bold mb-2 tracking-widest flex items-center gap-2">
@@ -3555,187 +993,33 @@ export default function ShipSim() {
         </div>
       )}
 
-      <div 
-        style={{ 
-          display: simMode === 'heli' ? 'flex' : 'none'
-        }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 glass-panel p-6 flex flex-col gap-6 rounded-2xl z-50 min-w-[340px]"
-      >
-        <div className="flex justify-between items-center border-b border-white/10 pb-3">
-           <div>
-              <h3 className="text-xs font-bold text-emerald-400 tracking-widest font-mono">HELI-OPS FLIGHT CONTROLS</h3>
-           </div>
-           <button 
-             onMouseDown={(e) => e.stopPropagation()}
-             onClick={() => {
-               setSimMode('ship');
-               setHeliSpeed(0);
-               setHeliAltitude(0);
-             }}
-             className="px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider rounded-lg border bg-red-950/40 text-red-400 border-red-800/50 hover:bg-red-800 hover:text-white transition-all shadow-[0_0_10px_rgba(239,68,68,0.2)]"
-           >
-             RETURN TO SHIP
-           </button>
-        </div>
-
-        <div className="flex flex-col gap-5 items-center w-full">
-           {/* Keyboard Instructions Info Bar */}
-           <div className="text-[10px] text-emerald-400/80 font-mono bg-emerald-950/20 border border-emerald-500/20 px-3 py-2 rounded-lg w-full text-center">
-             💡 WASD/Arrows to Steer & Fly! SPACE/SHIFT (or Q/Z) to Climb/Descend!
-           </div>
-
-           {/* HEIGHT / ALTITUDE */}
-           <div className="flex w-full items-center justify-between gap-4" onMouseDown={e => e.stopPropagation()}>
-              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest w-24">FLIGHT HEIGHT</span>
-              <input 
-                type="range"
-                min="0"
-                max="100"
-                value={heliAltitude}
-                onChange={(e) => setHeliAltitude(parseInt(e.target.value))}
-                className="flex-1 h-2 bg-black/40 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-              />
-              <span className="text-xs font-mono text-emerald-400 w-10 text-right">{heliAltitude} ft</span>
-           </div>
-           
-           {/* SPEED */}
-           <div className="flex w-full items-center justify-between gap-4" onMouseDown={e => e.stopPropagation()}>
-              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest w-24">FLIGHT SPEED</span>
-              <input 
-                type="range"
-                min="-10"
-                max="30"
-                value={heliSpeed}
-                onChange={(e) => setHeliSpeed(parseInt(e.target.value))}
-                className="flex-1 h-2 bg-black/40 rounded-lg appearance-none cursor-pointer accent-sky-500"
-              />
-              <span className="text-xs font-mono text-sky-400 w-10 text-right">{heliSpeed} kts</span>
-           </div>
-
-           {/* Quick Action Steering Buttons for Touch/Click */}
-           <div className="flex gap-2 w-full pt-1" onMouseDown={e => e.stopPropagation()}>
-              <button 
-                onClick={() => { heliState.current.heading -= 0.15; }}
-                className="flex-1 py-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-300 tracking-wider font-mono transition-all"
-              >
-                ◀ STEER PORT
-              </button>
-              <button 
-                onClick={() => { heliState.current.heading += 0.15; }}
-                className="flex-1 py-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-300 tracking-wider font-mono transition-all"
-              >
-                STEER STBD ▶
-              </button>
-           </div>
-        </div>
-      </div>
-
-      {missionAccomplished && (
-        <div className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center pointer-events-auto">
-          <div className="bg-slate-900 border border-emerald-500 shadow-[0_0_50px_rgba(16,185,129,0.5)] rounded-2xl p-12 flex flex-col items-center animate-bounce">
-             <h2 className="text-5xl font-bold text-emerald-400 mb-6 drop-shadow-md">MISSION ACCOMPLISHED</h2>
-             <p className="text-slate-300 text-xl mb-8">You successfully navigated the helicopter to the Jetty Landing Zone.</p>
-             <button 
-               onClick={() => {
-                 setMissionAccomplished(false);
-                 setSimMode('ship');
-               }}
-               className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-full shadow-lg uppercase tracking-widest"
-             >
-               Return to Ship
-             </button>
-          </div>
-        </div>
-      )}
-
       {/* Welcome Screen Overlay */}
       {showWelcome && (
-        <div className="absolute inset-0 z-[100] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 shadow-2xl rounded-2xl max-w-2xl w-full p-8 relative overflow-hidden">
-            {/* Background Accent */}
-            <div className="absolute -top-24 -right-24 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
-            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-            
-            <div className="relative z-10 flex flex-col items-center">
-              <img src="./logo.png" alt="Cadet Simulator Logo" className="w-32 h-32 mb-6 drop-shadow-xl" />
-              
-              <h1 className="text-3xl font-bold text-white mb-2 tracking-wide">CADET SIMULATOR</h1>
-              <p className="text-slate-400 text-center mb-8 max-w-lg">
-                Welcome to the digital helm. Practice ship handling, navigation, and maneuvering in dynamic environments. Learn to master wind, current, and momentum.
-              </p>
-              
-              <div className="grid grid-cols-2 gap-6 w-full mb-8">
-                <div className="bg-slate-950/50 border border-slate-800 p-4 rounded-xl shadow-inner max-h-[220px] overflow-y-auto custom-scrollbar">
-                  <h3 className="text-amber-400 font-mono text-xs mb-3 border-b border-slate-800 pb-2">SHIP CONTROLS</h3>
-                  <ul className="space-y-2 text-xs text-slate-300">
-                    <li className="flex justify-between items-center"><span>Steer Port/Stbd</span> <kbd className="bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono shadow-sm">← / →</kbd></li>
-                    <li className="flex justify-between items-center"><span>Throttle Up/Down</span> <kbd className="bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono shadow-sm">W / X</kbd></li>
-                    <li className="flex justify-between items-center"><span>Cut Throttle</span> <kbd className="bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono shadow-sm">S</kbd></li>
-                    <li className="flex justify-between items-center"><span>Bow Thrusters</span> <kbd className="bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono shadow-sm">A / D</kbd></li>
-                    <li className="flex justify-between items-center"><span>Stern Thrusters</span> <kbd className="bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono shadow-sm">Z / C</kbd></li>
-                  </ul>
-                </div>
-                
-                <div className="bg-slate-950/50 border border-slate-800 p-4 rounded-xl shadow-inner max-h-[220px] overflow-y-auto custom-scrollbar">
-                  <h3 className="text-emerald-400 font-mono text-xs mb-3 border-b border-slate-800 pb-2">HELI & MOUSE</h3>
-                  <ul className="space-y-2 text-xs text-slate-300">
-                    <li className="flex justify-between items-center"><span className="text-emerald-400">Heli Fly/Steer</span> <kbd className="bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono shadow-sm">WASD / Arrows</kbd></li>
-                    <li className="flex justify-between items-center"><span className="text-emerald-400">Heli Climb/Descend</span> <kbd className="bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono shadow-sm">SPACE / SHIFT</kbd></li>
-                    <li className="flex justify-between items-center"><span>Steering Wheel</span> <span className="text-[10px] text-slate-450 font-mono">Drag Dial</span></li>
-                    <li className="flex justify-between items-center"><span>Move Panels</span> <span className="text-[10px] text-slate-450 font-mono">Drag Header</span></li>
-                    <li className="flex justify-between items-center"><span>Draggable Buoys</span> <span className="text-[10px] text-slate-450 font-mono">Drag on Water</span></li>
-                  </ul>
-                </div>
-              </div>
-              
-              <button 
-                onClick={() => setShowWelcome(false)}
-                className="bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 px-10 rounded-full transition-all shadow-[0_0_15px_rgba(217,119,6,0.4)] hover:shadow-[0_0_25px_rgba(217,119,6,0.6)] hover:-translate-y-0.5 uppercase tracking-widest text-sm active:scale-95"
-              >
-                Take the Helm
-              </button>
-            </div>
-          </div>
-        </div>
+        <WelcomeScreen onTakeHelm={() => setShowWelcome(false)} />
+      )}
+
+      {/* Helicopter Mission Accomplished Modal */}
+      {missionAccomplished && (
+        <MissionAccomplishedModal 
+          onReturnToShip={() => {
+            setMissionAccomplished(false);
+            setSimMode('ship');
+          }}
+        />
       )}
 
       {/* Course Completed Modal */}
       {courseCompleted && activeCourse && (
-        <div className="absolute inset-0 z-[110] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900/90 border border-emerald-500 shadow-[0_0_50px_rgba(16,185,129,0.4)] rounded-2xl max-w-md w-full p-8 relative text-center">
-            <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-24 h-24 bg-gradient-to-tr from-emerald-400 to-teal-500 rounded-full flex items-center justify-center shadow-lg border-4 border-slate-900">
-              <span className="text-4xl">🏆</span>
-            </div>
-            <h2 className="text-3xl font-bold text-white mt-12 mb-2 tracking-wide">COURSE COMPLETED!</h2>
-            <p className="text-slate-400 text-sm mb-6">Excellent seamanship, Cadet!</p>
-            
-            <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl shadow-inner mb-6 text-left font-mono text-sm space-y-2">
-              <div className="flex justify-between"><span className="text-slate-400">Course:</span> <span className="text-slate-200">{activeCourse.name}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">Time Taken:</span> <span className="text-amber-400">{Math.floor(courseElapsedTime / 60)}m {Math.floor(courseElapsedTime % 60)}s</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">Vessel Class:</span> <span className="text-emerald-400 uppercase">{shipClass}</span></div>
-            </div>
-
-            <div className="flex gap-3">
-              <button 
-                onClick={() => {
-                  const selected = PREMADE_COURSES.find(c => c.id === activeCourse.id);
-                  startCourse(selected || null);
-                }}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] uppercase tracking-wider text-xs active:scale-95"
-              >
-                Retry Course
-              </button>
-              <button 
-                onClick={() => {
-                  startCourse(null);
-                }}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-xl transition-all border border-slate-700 uppercase tracking-wider text-xs active:scale-95"
-              >
-                Free Sailing
-              </button>
-            </div>
-          </div>
-        </div>
+        <CourseCompletedModal
+          activeCourse={activeCourse}
+          courseElapsedTime={courseElapsedTime}
+          shipClass={shipClass}
+          onRetry={() => {
+            const selected = PREMADE_COURSES.find(c => c.id === activeCourse.id);
+            startCourse(selected || null);
+          }}
+          onFreeSailing={() => startCourse(null)}
+        />
       )}
 
     </div>
