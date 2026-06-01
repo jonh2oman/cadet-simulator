@@ -1170,6 +1170,8 @@ export default function ShipSim() {
              heading: state.heading, altitude: 0, speed: 0, pitch: 0, roll: 0, yawRate: 0
            };
            setSimMode('heli');
+           setHeliAltitude(30);
+           setHeliSpeed(0);
            setThrottle(0);
            setRudder(0);
            state.speed = 0;
@@ -1252,6 +1254,14 @@ export default function ShipSim() {
         if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
           e.preventDefault();
           setHeliSpeed(prev => Math.max(-10, prev - 2)); // Slow down / reverse
+        }
+        if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'q' || e.key === 'Q' || e.key === 'PageUp') {
+          e.preventDefault();
+          setHeliAltitude(prev => Math.min(100, prev + 5)); // Climb
+        }
+        if (e.key === 'Shift' || e.key === 'z' || e.key === 'Z' || e.key === 'PageDown') {
+          e.preventDefault();
+          setHeliAltitude(prev => Math.max(0, prev - 5)); // Descend
         }
         return;
       }
@@ -3336,7 +3346,7 @@ export default function ShipSim() {
         <div className="flex flex-col gap-5 items-center w-full">
            {/* Keyboard Instructions Info Bar */}
            <div className="text-[10px] text-emerald-400/80 font-mono bg-emerald-950/20 border border-emerald-500/20 px-3 py-2 rounded-lg w-full text-center">
-             💡 Use <b>ARROW KEYS</b> or <b>WASD</b> to Steer & Fly!
+             💡 WASD/Arrows to Steer & Fly! SPACE/SHIFT (or Q/Z) to Climb/Descend!
            </div>
 
            {/* HEIGHT / ALTITUDE */}
@@ -3420,21 +3430,25 @@ export default function ShipSim() {
               </p>
               
               <div className="grid grid-cols-2 gap-6 w-full mb-8">
-                <div className="bg-slate-950/50 border border-slate-800 p-4 rounded-xl shadow-inner">
-                  <h3 className="text-amber-400 font-mono text-sm mb-3 border-b border-slate-800 pb-2">KEYBOARD CONTROLS</h3>
-                  <ul className="space-y-3 text-sm text-slate-300">
-                    <li className="flex justify-between items-center"><span>Steer Port/Stbd</span> <kbd className="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-xs font-mono shadow-sm">← / →</kbd></li>
-                    <li className="flex justify-between items-center"><span>Increase Thrust</span> <kbd className="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-xs font-mono shadow-sm">Q</kbd></li>
-                    <li className="flex justify-between items-center"><span>Decrease Thrust</span> <kbd className="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-xs font-mono shadow-sm">Z</kbd></li>
+                <div className="bg-slate-950/50 border border-slate-800 p-4 rounded-xl shadow-inner max-h-[220px] overflow-y-auto custom-scrollbar">
+                  <h3 className="text-amber-400 font-mono text-xs mb-3 border-b border-slate-800 pb-2">SHIP CONTROLS</h3>
+                  <ul className="space-y-2 text-xs text-slate-300">
+                    <li className="flex justify-between items-center"><span>Steer Port/Stbd</span> <kbd className="bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono shadow-sm">← / →</kbd></li>
+                    <li className="flex justify-between items-center"><span>Throttle Up/Down</span> <kbd className="bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono shadow-sm">W / X</kbd></li>
+                    <li className="flex justify-between items-center"><span>Cut Throttle</span> <kbd className="bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono shadow-sm">S</kbd></li>
+                    <li className="flex justify-between items-center"><span>Bow Thrusters</span> <kbd className="bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono shadow-sm">A / D</kbd></li>
+                    <li className="flex justify-between items-center"><span>Stern Thrusters</span> <kbd className="bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono shadow-sm">Z / C</kbd></li>
                   </ul>
                 </div>
                 
-                <div className="bg-slate-950/50 border border-slate-800 p-4 rounded-xl shadow-inner">
-                  <h3 className="text-emerald-400 font-mono text-sm mb-3 border-b border-slate-800 pb-2">MOUSE CONTROLS</h3>
-                  <ul className="space-y-3 text-sm text-slate-300">
-                    <li className="flex justify-between items-center"><span>Steering Wheel</span> <span className="text-xs text-slate-400 font-medium">Click & Drag</span></li>
-                    <li className="flex justify-between items-center"><span>Move Panel</span> <span className="text-xs text-slate-400 font-medium">Drag Top Plate</span></li>
-                    <li className="flex justify-between items-center"><span>Move Buoys</span> <span className="text-xs text-slate-400 font-medium">Drag on Water</span></li>
+                <div className="bg-slate-950/50 border border-slate-800 p-4 rounded-xl shadow-inner max-h-[220px] overflow-y-auto custom-scrollbar">
+                  <h3 className="text-emerald-400 font-mono text-xs mb-3 border-b border-slate-800 pb-2">HELI & MOUSE</h3>
+                  <ul className="space-y-2 text-xs text-slate-300">
+                    <li className="flex justify-between items-center"><span className="text-emerald-400">Heli Fly/Steer</span> <kbd className="bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono shadow-sm">WASD / Arrows</kbd></li>
+                    <li className="flex justify-between items-center"><span className="text-emerald-400">Heli Climb/Descend</span> <kbd className="bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono shadow-sm">SPACE / SHIFT</kbd></li>
+                    <li className="flex justify-between items-center"><span>Steering Wheel</span> <span className="text-[10px] text-slate-450 font-mono">Drag Dial</span></li>
+                    <li className="flex justify-between items-center"><span>Move Panels</span> <span className="text-[10px] text-slate-450 font-mono">Drag Header</span></li>
+                    <li className="flex justify-between items-center"><span>Draggable Buoys</span> <span className="text-[10px] text-slate-450 font-mono">Drag on Water</span></li>
                   </ul>
                 </div>
               </div>
