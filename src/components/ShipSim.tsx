@@ -1473,10 +1473,10 @@ export default function ShipSim() {
         // Thrusters can only operate efficiently at low speeds
         const thrusterEfficiency = Math.max(0, 1 - Math.abs(state.speed) / 5);
         
-        const thrusterTurnRate = (bowT - sternT) * 0.2 * turnInertia * thrusterEfficiency;
+        const thrusterTurnRate = (bowT - sternT) * 0.06 * turnInertia * thrusterEfficiency;
         state.heading += thrusterTurnRate * dt;
         
-        const lateralDrift = (bowT + sternT) * 2.0 * thrusterEfficiency; // 2 units of lateral drift max
+        const lateralDrift = (bowT + sternT) * 0.5 * thrusterEfficiency; // 0.5 units of lateral drift max
         const perpRad = state.heading + Math.PI / 2;
         lateralDx = Math.sin(perpRad) * lateralDrift;
         lateralDy = -Math.cos(perpRad) * lateralDrift;
