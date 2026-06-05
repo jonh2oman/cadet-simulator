@@ -96,6 +96,16 @@ const getFemaleVoice = () => {
   return voices.find(v => v.lang.startsWith('en')) || null;
 };
 
+const isChannelMatch = (current: string, expected: string | number | undefined): boolean => {
+  if (!expected) return true;
+  const cur = current.trim().toUpperCase();
+  const exp = expected.toString().trim().toUpperCase();
+  if (exp === '83B' || exp === '83A') {
+    return cur === '83B' || cur === '83A';
+  }
+  return cur === exp;
+};
+
 export default function RadioGame() {
   const [activeScenario, setActiveScenario] = useState<string>('distress-mayday');
   const [currentNodeId, setCurrentNodeId] = useState<string>('start');
@@ -287,7 +297,7 @@ export default function RadioGame() {
       weatherNoiseRef.current = playStatic(0, true);
       
       let textToSpeak = formatVesselName(lastMsg.text);
-      // Clean up bracketed speaker/channel prefixes (e.g. "(St. John's CCG on 83A): Hello") for TTS
+      // Clean up bracketed speaker/channel prefixes (e.g. "(St. John's CCG on 83B): Hello") for TTS
       if (textToSpeak.startsWith('(') && textToSpeak.includes('):')) {
         textToSpeak = textToSpeak.substring(textToSpeak.indexOf('):') + 2).trim();
       }
@@ -547,7 +557,7 @@ export default function RadioGame() {
                   
                   {msg.options && (
                     <div className="mt-6 flex flex-col gap-3">
-                      {(scenarios[activeScenario]?.[currentNodeId]?.expectedChannel && currentChannel !== scenarios[activeScenario]?.[currentNodeId]?.expectedChannel?.toString() && idx === commsLog.length - 1) ? (
+                      {(scenarios[activeScenario]?.[currentNodeId]?.expectedChannel && !isChannelMatch(currentChannel, scenarios[activeScenario]?.[currentNodeId]?.expectedChannel) && idx === commsLog.length - 1) ? (
                         <div className="text-red-400 font-bold animate-pulse text-sm border border-red-900/50 bg-red-950/40 p-4 rounded-lg text-center tracking-widest shadow-inner">
                           [ TUNE TO CH {scenarios[activeScenario]?.[currentNodeId]?.expectedChannel} TO CONTINUE ]
                         </div>
