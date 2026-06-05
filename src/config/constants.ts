@@ -55,7 +55,7 @@ export const SHIP_SPECS: Record<string, ShipSpec> = {
     power: '150 HP',
     topSpeed: '40+ knots',
     description: 'Fast, highly agile inflatable boat with single outboard motor. Instant response time.',
-    visualScale: 0.78125
+    visualScale: 0.35
   },
   patrol: {
     loa: '24 meters',
@@ -69,14 +69,14 @@ export const SHIP_SPECS: Record<string, ShipSpec> = {
     power: '20,000 HP',
     topSpeed: '28 knots',
     description: 'Medium military vessel. Moderate inertia. Equipped with Bow Thruster.',
-    visualScale: 1.875
+    visualScale: 3.69
   },
   frigate: {
     loa: '135 meters',
     power: '45,000 HP',
     topSpeed: '30 knots',
     description: 'Large military vessel. High inertia. Equipped with Bow & Stern Thrusters, and Helipad.',
-    visualScale: 2.8125
+    visualScale: 4.395
   }
 };
 

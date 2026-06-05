@@ -277,20 +277,20 @@ export const scenarios: Record<string, Record<string, ScenarioNode>> = {
       messages: [
         {
           speaker: 'COAST GUARD',
-          text: 'Cadet Vessel, this is St. John\'s Coast Guard Radio. Shift to working Channel 83B for radio check. Over.',
+          text: 'Cadet Vessel, this is St. John\'s Coast Guard Radio. Shift to working Channel 83A for radio check. Over.',
           options: [
-            { text: 'Roger. Shifting to Channel 83B. Cadet Vessel out.', nextNode: 'check-shift-83' }
+            { text: 'Roger. Shifting to Channel 83A. Cadet Vessel out.', nextNode: 'check-shift-83' }
           ]
         }
       ]
     },
     'check-shift-83': {
       id: 'check-shift-83',
-      expectedChannel: '83B',
+      expectedChannel: '83A',
       messages: [
         {
           speaker: 'OTHER',
-          text: '(St. John\'s Coast Guard Radio on Ch 83B): Cadet Vessel, this is St. John\'s Coast Guard Radio. How do you read me? Over.',
+          text: '(St. John\'s Coast Guard Radio on Ch 83A): Cadet Vessel, this is St. John\'s Coast Guard Radio. How do you read me? Over.',
           options: [
             { text: 'St. John\'s Coast Guard Radio, this is Cadet Vessel. I read you strength 5, loud and clear. Over.', nextNode: 'check-success' }
           ]

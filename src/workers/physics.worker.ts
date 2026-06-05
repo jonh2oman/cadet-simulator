@@ -90,17 +90,17 @@ const startPhysicsTick = () => {
     if (shipClass === 'zodiac') {
       inertia = 1.8;
       turnInertia = 2.0;
-      visualScale = 0.78125;
+      visualScale = 0.35;
       maxSpeedMultiplier = 0.40;
     } else if (shipClass === 'corvette') {
       inertia = 0.5;
       turnInertia = 0.25;
-      visualScale = 1.875;
+      visualScale = 3.69;
       maxSpeedMultiplier = 0.28;
     } else if (shipClass === 'frigate') {
       inertia = 0.25;
       turnInertia = 0.10;
-      visualScale = 2.8125;
+      visualScale = 4.395;
       maxSpeedMultiplier = 0.30;
     }
 
@@ -184,48 +184,35 @@ const startPhysicsTick = () => {
     }
 
     // Check jetty bounding boxes
-    for (const rect of jettyRects) {
-      const testX = Math.max(dockWorldX + rect.x, Math.min(newX, dockWorldX + rect.x + rect.w));
-      const testY = Math.max(dockWorldY + rect.y, Math.min(newY, dockWorldY + rect.y + rect.h));
-      const dist = Math.hypot(newX - testX, newY - testY);
-      if (dist <= shipRadius) { collision = true; break; }
-    }
+    if (!isDocked) {
+      for (const rect of jettyRects) {
+        const testX = Math.max(dockWorldX + rect.x, Math.min(newX, dockWorldX + rect.x + rect.w));
+        const testY = Math.max(dockWorldY + rect.y, Math.min(newY, dockWorldY + rect.y + rect.h));
+        const dist = Math.hypot(newX - testX, newY - testY);
+        if (dist <= shipRadius) { collision = true; break; }
+      }
 
-    // Island & Mainland hitboxes
-    if (!collision) {
-      if (portMode === 'pasadena') {
-        const minChannelY = -newX - 1500 + shipRadius;
-        let maxChannelY = -newX + 2200;
-        if (newX >= 600 && newX <= 800) {
-          const ratio = (newX - 600) / 200;
-          maxChannelY = ratio * (-newX + 2200) + (1 - ratio) * 250;
-        } else if (newX >= 400 && newX < 600) {
-          maxChannelY = 250;
-        } else if (newX >= 200 && newX < 400) {
-          const ratio = (400 - newX) / 200;
-          maxChannelY = ratio * (-newX + 2200) + (1 - ratio) * 250;
-        }
-        maxChannelY -= shipRadius;
+      // Island & Mainland hitboxes
+      if (!collision) {
+        if (portMode === 'pasadena') {
+          const minChannelY = -newX - 1500 + shipRadius;
+          let maxChannelY = -newX + 2200;
+          if (newX >= 600 && newX <= 800) {
+            const ratio = (newX - 600) / 200;
+            maxChannelY = ratio * (-newX + 2200) + (1 - ratio) * 250;
+          } else if (newX >= 400 && newX < 600) {
+            maxChannelY = 250;
+          } else if (newX >= 200 && newX < 400) {
+            const ratio = (400 - newX) / 200;
+            maxChannelY = ratio * (-newX + 2200) + (1 - ratio) * 250;
+          }
+          maxChannelY -= shipRadius;
 
-        if (newY <= minChannelY || newY >= maxChannelY) {
-          collision = true;
-        }
-      } else if (portMode === 'custom') {
-        // Dynamic map, skip the default right-hand wall boundary check!
-        for (const island of islands) {
-          let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-          island.points.forEach(p => {
-            if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0];
-            if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1];
-          });
-          const testX = Math.max(minX, Math.min(newX, maxX));
-          const testY = Math.max(minY, Math.min(newY, maxY));
-          if (Math.hypot(newX - testX, newY - testY) <= shipRadius) { collision = true; break; }
-        }
-      } else {
-        if (newX > dockWorldX + 250 - shipRadius) {
-          collision = true;
-        } else {
+          if (newY <= minChannelY || newY >= maxChannelY) {
+            collision = true;
+          }
+        } else if (portMode === 'custom') {
+          // Dynamic map, skip the default right-hand wall boundary check!
           for (const island of islands) {
             let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
             island.points.forEach(p => {
@@ -235,6 +222,21 @@ const startPhysicsTick = () => {
             const testX = Math.max(minX, Math.min(newX, maxX));
             const testY = Math.max(minY, Math.min(newY, maxY));
             if (Math.hypot(newX - testX, newY - testY) <= shipRadius) { collision = true; break; }
+          }
+        } else {
+          if (newX > dockWorldX + 250 - shipRadius) {
+            collision = true;
+          } else {
+            for (const island of islands) {
+              let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+              island.points.forEach(p => {
+                if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0];
+                if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1];
+              });
+              const testX = Math.max(minX, Math.min(newX, maxX));
+              const testY = Math.max(minY, Math.min(newY, maxY));
+              if (Math.hypot(newX - testX, newY - testY) <= shipRadius) { collision = true; break; }
+            }
           }
         }
       }
@@ -258,7 +260,17 @@ const startPhysicsTick = () => {
       isTieUpAvailable = inZoneX && inZoneY && speedOk;
       
       if (isTieUpAvailable) {
-        snapX = berthZone.snapX;
+        if (portMode === 'pasadena') {
+          snapX = berthZone.snapX;
+        } else {
+          // Adjust snap position dynamically to align ship's starboard side to the jetty's port face
+          let halfWidth = 10;
+          if (shipClass === 'zodiac') halfWidth = 12.5;
+          else if (shipClass === 'patrol') halfWidth = 14;
+          else halfWidth = 12; // corvette & frigate
+          
+          snapX = 490 - (halfWidth * visualScale) - 2;
+        }
         snapY = berthZone.snapY;
         snapH = berthZone.snapH;
       }

@@ -244,6 +244,8 @@ export default function RadioGame() {
         setInputBuffer(p => p.length < 5 && !p.includes('.') ? p + '.' : p);
       } else if (e.key === 'a' || e.key === 'A') {
         setInputBuffer(p => p.length < 5 && !p.includes('A') ? p + 'A' : p);
+      } else if (e.key === 'b' || e.key === 'B') {
+        setInputBuffer(p => p.length < 5 && !p.includes('B') ? p + 'B' : p);
       } else if (e.key === 'Enter') {
         if (inputBuffer) {
           setCurrentChannel(inputBuffer);
@@ -285,7 +287,7 @@ export default function RadioGame() {
       weatherNoiseRef.current = playStatic(0, true);
       
       let textToSpeak = formatVesselName(lastMsg.text);
-      // Clean up bracketed speaker/channel prefixes (e.g. "(St. John's CCG on 83B): Hello") for TTS
+      // Clean up bracketed speaker/channel prefixes (e.g. "(St. John's CCG on 83A): Hello") for TTS
       if (textToSpeak.startsWith('(') && textToSpeak.includes('):')) {
         textToSpeak = textToSpeak.substring(textToSpeak.indexOf('):') + 2).trim();
       }
@@ -405,10 +407,11 @@ export default function RadioGame() {
                   ))}
                   <button onClick={(e) => { e.stopPropagation(); setInputBuffer(p => p.length < 5 && !p.includes('A') ? p + 'A' : p); playStatic(50); }} className="h-6 bg-purple-900/80 hover:bg-purple-800 rounded text-[10px] text-purple-200 font-bold shadow-sm active:translate-y-px">A</button>
                   <button onClick={(e) => { e.stopPropagation(); setInputBuffer(p => p.length < 5 ? p + '0' : p); playStatic(50); }} className="h-6 bg-slate-700 hover:bg-slate-600 rounded text-[10px] text-white font-bold shadow-sm active:translate-y-px">0</button>
+                  <button onClick={(e) => { e.stopPropagation(); setInputBuffer(p => p.length < 5 && !p.includes('B') ? p + 'B' : p); playStatic(50); }} className="h-6 bg-purple-900/80 hover:bg-purple-800 rounded text-[10px] text-purple-200 font-bold shadow-sm active:translate-y-px">B</button>
                   <button onClick={(e) => { e.stopPropagation(); setCurrentChannel('WX'); setInputBuffer(''); playStatic(300); }} className="h-6 bg-blue-900/80 hover:bg-blue-800 rounded text-[10px] text-blue-200 font-bold shadow-sm active:translate-y-px">WX</button>
                   <button onClick={(e) => { e.stopPropagation(); setInputBuffer(p => p.length < 5 && !p.includes('.') ? p + '.' : p); playStatic(50); }} className="h-6 bg-slate-700 hover:bg-slate-600 rounded text-[10px] text-white font-bold shadow-sm active:translate-y-px">.</button>
                   <button onClick={(e) => { e.stopPropagation(); setInputBuffer(''); playStatic(150); }} className="h-6 bg-red-900/80 hover:bg-red-800 rounded text-[10px] text-red-200 font-bold shadow-sm active:translate-y-px">CLR</button>
-                  <button onClick={(e) => { e.stopPropagation(); if (inputBuffer) { setCurrentChannel(inputBuffer); setInputBuffer(''); playStatic(300); } }} className="h-6 bg-emerald-900/80 hover:bg-emerald-800 rounded text-[10px] text-emerald-200 font-bold shadow-sm active:translate-y-px">ENT</button>
+                  <button onClick={(e) => { e.stopPropagation(); if (inputBuffer) { setCurrentChannel(inputBuffer); setInputBuffer(''); playStatic(300); } }} className="h-6 bg-emerald-900/80 hover:bg-emerald-800 rounded text-[10px] text-emerald-200 font-bold shadow-sm active:translate-y-px col-span-3">ENT</button>
                 </div>
                 {/* PTT Button */}
                 <div 

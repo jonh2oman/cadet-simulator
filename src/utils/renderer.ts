@@ -394,7 +394,8 @@ export const drawShip = (
   whiteLightsOn: boolean,
   bowThruster: number,
   sternThruster: number,
-  rudder?: number
+  rudder?: number,
+  _visualScale?: number
 ) => {
   const isZodiac = shipClass === 'zodiac';
   const isMilitary = shipClass === 'corvette' || shipClass === 'frigate';
@@ -1093,7 +1094,11 @@ export const drawMooringLines = (
   camX: number,
   camY: number,
   portMode: string,
-  isDocked: boolean
+  isDocked: boolean,
+  shipClass?: string,
+  shipX?: number,
+  shipY?: number,
+  visualScale?: number
 ) => {
   if (!isDocked) return;
 
@@ -1117,15 +1122,25 @@ export const drawMooringLines = (
     // Right Stern
     ctx.moveTo(508, 150); ctx.lineTo(527, 140);
   } else {
-    // Home or Random map straight/L/T/U docking: boat is snapped at (460, 150)
+    // Home or Random map straight/L/T/U docking: boat is snapped at (shipX, shipY)
     // Jetty is at x = 500, left edge is at 490.
+    const sx = shipX ?? 460;
+    const sy = shipY ?? 150;
+    const scale = visualScale ?? 1.5625;
+    
+    let halfWidth = 12;
+    if (shipClass === 'zodiac') halfWidth = 12.5;
+    else if (shipClass === 'patrol') halfWidth = 14;
+    
+    const boatX = sx + halfWidth * scale;
+
     // Bow line
-    ctx.moveTo(460, 110); ctx.lineTo(490, 70);
+    ctx.moveTo(boatX, sy - 40 * scale); ctx.lineTo(490, 70);
     // Stern line
-    ctx.moveTo(460, 190); ctx.lineTo(490, 190);
+    ctx.moveTo(boatX, sy + 40 * scale); ctx.lineTo(490, 190);
     // Spring lines
-    ctx.moveTo(460, 130); ctx.lineTo(490, 170);
-    ctx.moveTo(460, 170); ctx.lineTo(490, 130);
+    ctx.moveTo(boatX, sy - 20 * scale); ctx.lineTo(490, 170);
+    ctx.moveTo(boatX, sy + 20 * scale); ctx.lineTo(490, 130);
   }
   ctx.stroke();
   ctx.restore();

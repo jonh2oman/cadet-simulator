@@ -393,14 +393,15 @@ export default function ShipSim() {
         const shipLocalX = dx * cosH - dy * sinH;
         const shipLocalY = dx * sinH + dy * cosH;
         
-        const unscaledX = shipLocalX / 2.8125;
-        const unscaledY = shipLocalY / 2.8125;
+        const fScale = SHIP_SPECS['frigate']?.visualScale || 4.395;
+        const unscaledX = shipLocalX / fScale;
+        const unscaledY = shipLocalY / fScale;
         
         // Helipad is at (0, 40) in unscaled coordinates
         if (Math.hypot(unscaledX, unscaledY - 40) < 25) {
            heliState.current = {
-             x: state.x - Math.sin(state.heading) * (40 * 2.8125),
-             y: state.y + Math.cos(state.heading) * (40 * 2.8125),
+             x: state.x - Math.sin(state.heading) * (40 * fScale),
+             y: state.y + Math.cos(state.heading) * (40 * fScale),
              heading: state.heading, altitude: 0, speed: 0, pitch: 0, roll: 0, yawRate: 0
            };
            setSimMode('heli');
@@ -855,7 +856,11 @@ export default function ShipSim() {
         camX,
         camY,
         currentStore.portMode,
-        currentStore.isDocked
+        currentStore.isDocked,
+        currentStore.shipClass,
+        state.x,
+        state.y,
+        visualScale
       );
 
       // Draw vessel
@@ -870,7 +875,8 @@ export default function ShipSim() {
         currentStore.whiteLightsOn,
         currentStore.bowThruster,
         currentStore.sternThruster,
-        currentStore.rudder
+        currentStore.rudder,
+        visualScale
       );
 
       // Draw detached helicopter
